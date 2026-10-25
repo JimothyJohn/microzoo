@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Microcosmos Tank</title>
+<meta name="description" content="An orbitable drop of pond water with the whole cast swimming in it: Paramecium, Didinium, rotifers, Stentor, an amoeba and a Daphnia. Toggle the tracker HUD or trigger a hunt.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&display=swap">
+<style>
+/* One full-bleed darkfield "drop" the viewer orbits; a title card floats bottom-left; a tracker HUD toggles on.
+   Palette: black water, bioluminescent cyan/green critters. Single committed dark look. */
+:root{--bg:#02070a;--fg:#dff3f5;--muted:#7fa3aa;--accent:#3ff0f5;--display:"Sora",system-ui,sans-serif;color-scheme:dark}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#02070a;--fg:#dff3f5;--muted:#7fa3aa;--accent:#3ff0f5;color-scheme:dark}}
+:root[data-theme="light"]{--bg:#02070a;--fg:#dff3f5;--muted:#7fa3aa;--accent:#3ff0f5;color-scheme:dark}
+html,body{height:100%}body{margin:0;background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--display)}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.card{position:fixed;left:max(20px,env(safe-area-inset-left,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));max-width:min(420px,80vw);pointer-events:none}
+.card h1{margin:0;font-size:clamp(26px,5vw,44px);line-height:1;letter-spacing:-.02em;text-wrap:balance}
+.card h1 em{font-style:normal;color:var(--accent)}
+.card p{margin:8px 0 0;color:var(--muted);font-size:14px;font-family:system-ui,sans-serif}
+.hud{position:fixed;right:max(16px,env(safe-area-inset-right,0px));top:calc(14px + env(safe-area-inset-top,0px));display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.back{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:calc(14px + env(safe-area-inset-top,0px))}
+button,.back a{background:rgba(2,7,10,.6);color:var(--fg);border:1px solid rgba(127,163,170,.4);border-radius:999px;padding:7px 13px;font:600 12px system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;backdrop-filter:blur(6px);text-decoration:none;display:inline-block}
+button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+button:focus-visible,.back a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tag{position:absolute;transform:translate(-50%,-140%);font:600 11px ui-monospace,Menlo,monospace;color:var(--accent);background:rgba(2,7,10,.55);padding:2px 6px;border-radius:3px;border:1px solid rgba(63,240,245,.5);pointer-events:none;white-space:nowrap}
+#tags{position:fixed;inset:0;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="tags"></div>
+<div class="back"><a href="index.html">← microzoo</a></div>
+<div class="hud">
+  <button id="track" aria-pressed="false">Tracker HUD</button>
+  <button id="hunt">Trigger a hunt</button>
+</div>
+<div class="card">
+  <h1>One drop.<br>A whole <em>ecosystem.</em></h1>
+  <p>Predator and prey at a fifth of a millimetre. Filmed and tracked automatically. Coming from a pond near you.</p>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.149.0/three.min.js"></script>
+<script>
+(function(){
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x02070a);scene.fog=new THREE.FogExp2(0x02070a,0.012);
+const cam=new THREE.PerspectiveCamera(45,1,0.1,500);
+let theta=0.6,phi=1.2,dist=70;const target=new THREE.Vector3(0,0,0);
+scene.add(new THREE.AmbientLight(0x224455,0.6));
+const rim=new THREE.PointLight(0x3ff0f5,2.2,160);rim.position.set(0,-30,0);scene.add(rim);  // light from below: darkfield feel
+const key=new THREE.DirectionalLight(0x9fe8ff,0.5);key.position.set(20,30,10);scene.add(key);
+
+// the "drop": a faint boundary sphere + floating debris
+const bounds=28;
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(bounds,32,24),new THREE.MeshBasicMaterial({color:0x3ff0f5,wireframe:true,transparent:true,opacity:0.035})));
+const dustGeo=new THREE.BufferGeometry();const N=900;const pos=new Float32Array(N*3);
+for(let i=0;i<N;i++){const r=bounds*Math.cbrt(Math.random());const t=Math.random()*6.283,p=Math.acos(2*Math.random()-1);pos[i*3]=r*Math.sin(p)*Math.cos(t);pos[i*3+1]=r*Math.sin(p)*Math.sin(t);pos[i*3+2]=r*Math.cos(p);}
+dustGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+scene.add(new THREE.Points(dustGeo,new THREE.PointsMaterial({color:0x7fd9dd,size:0.18,transparent:true,opacity:0.6})));
+
+const flat=(c,e=0.25)=>new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:e,flatShading:true,roughness:.8});
+const critters=[];
+function addCritter(mesh,kind,speed){Object.assign(mesh.userData,{kind,speed,vel:new THREE.Vector3().randomDirection().multiplyScalar(speed),turn:0,phase:Math.random()*6.283});scene.add(mesh);critters.push(mesh);return mesh;}
+
+// Paramecium: low-poly slipper with a few cilia spikes
+function paramecium(){const g=new THREE.Group();const body=new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),flat(0x5ad08a,.35));body.scale.set(2.6,1,0.9);g.add(body);
+  for(let i=0;i<10;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.5,4),flat(0x8ff0b0,.5));const a=i/10*6.283;c.position.set(Math.cos(a)*1.2*2.6*0.4,Math.sin(a)*1.0,0);c.rotation.z=a-1.57;g.add(c);}
+  g.position.randomDirection().multiplyScalar(bounds*0.7);return addCritter(g,'paramecium',0.11);}
+// Didinium: barrel with two cilia belts and a proboscis
+function didinium(){const g=new THREE.Group();const body=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.2,2.4,8),flat(0xf2a74b,.35));g.add(body);
+  [0.8,-0.5].forEach(y=>{const b=new THREE.Mesh(new THREE.TorusGeometry(1.25,0.12,6,10),flat(0xffd27a,.6));b.rotation.x=1.57;b.position.y=y;g.add(b);});
+  const p=new THREE.Mesh(new THREE.ConeGeometry(0.35,0.9,6),flat(0xffe0a0,.6));p.position.y=1.6;g.add(p);
+  g.position.randomDirection().multiplyScalar(bounds*0.7);const c=addCritter(g,'didinium',0.14);c.userData.eating=0;return c;}
+// Rotifer: anchored body with two spinning "wheels"
+function rotifer(){const g=new THREE.Group();const body=new THREE.Mesh(new THREE.ConeGeometry(0.8,2.6,6),flat(0xb28cff,.3));body.rotation.x=Math.PI;g.add(body);
+  const wheels=[];[-0.5,0.5].forEach(x=>{const w=new THREE.Mesh(new THREE.TorusGeometry(0.55,0.1,6,12),flat(0xd9c2ff,.7));w.position.set(x,1.4,0);w.rotation.x=1.57;g.add(w);wheels.push(w);});
+  g.userData.wheels=wheels;g.position.set((Math.random()-0.5)*30,-bounds*0.55,(Math.random()-0.5)*30);
+  const c=addCritter(g,'rotifer',0);c.userData.anchor=g.position.clone();return c;}
+// Stentor: trumpet anchored to debris
+function stentor(){const g=new THREE.Group();const t=new THREE.Mesh(new THREE.CylinderGeometry(2.2,0.3,6,10,1,true),new THREE.MeshStandardMaterial({color:0x3ec9d6,emissive:0x3ec9d6,emissiveIntensity:.3,flatShading:true,side:THREE.DoubleSide}));g.add(t);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(2.2,0.18,6,14),flat(0x8ff8ff,.7));ring.rotation.x=1.57;ring.position.y=3;g.add(ring);
+  g.position.set(14,-bounds*0.5,-8);g.rotation.z=-0.3;const c=addCritter(g,'stentor',0);c.userData.contract=0;return c;}
+// Amoeba: slow deforming blob
+function amoeba(){const m=new THREE.Mesh(new THREE.IcosahedronGeometry(1.8,1),flat(0xd8e0a0,.2));m.userData.base=m.geometry.attributes.position.array.slice();m.position.set(-12,-bounds*0.5+2,10);return addCritter(m,'amoeba',0.01);}
+// Daphnia: big low-poly water flea, hops
+function daphnia(){const g=new THREE.Group();const body=new THREE.Mesh(new THREE.IcosahedronGeometry(2.2,1),flat(0xff8fa3,.25));body.scale.set(1,1.3,0.7);g.add(body);
+  const eye=new THREE.Mesh(new THREE.SphereGeometry(0.4,6,6),flat(0x111111,0));eye.position.set(0.9,1.6,0.5);g.add(eye);
+  [1,-1].forEach(s=>{const a=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,3,4),flat(0xffc0cb,.4));a.position.set(s*1.6,1.4,0);a.rotation.z=s*0.9;g.add(a);});
+  g.position.set(-5,15,-5);const c=addCritter(g,'daphnia',0.02);c.userData.hop=0;return c;}
+
+const paras=[];for(let i=0;i<14;i++)paras.push(paramecium());
+const dids=[didinium(),didinium()];
+for(let i=0;i<4;i++)rotifer();stentor();amoeba();daphnia();
+
+// tracker HUD: screen-space tags per critter
+const tagsEl=document.getElementById('tags');let hud=false;const tagMap=new Map();
+document.getElementById('track').onclick=e=>{hud=!hud;e.currentTarget.setAttribute('aria-pressed',hud);tagsEl.innerHTML='';tagMap.clear();};
+const names={paramecium:'PARAMECIUM',didinium:'DIDINIUM',rotifer:'ROTIFER',stentor:'STENTOR',amoeba:'AMOEBA',daphnia:'DAPHNIA'};
+function drawTags(){if(!hud)return;const w=innerWidth,h=innerHeight;const v=new THREE.Vector3();
+  critters.forEach((c,i)=>{let t=tagMap.get(c);if(!t){t=document.createElement('div');t.className='tag';t.textContent=`#${String(i+1).padStart(2,'0')} ${names[c.userData.kind]}`;tagsEl.appendChild(t);tagMap.set(c,t);}
+    c.getWorldPosition(v);v.project(cam);const vis=v.z<1&&c.visible;t.style.display=vis?'block':'none';t.style.left=(v.x*0.5+0.5)*w+'px';t.style.top=(-v.y*0.5+0.5)*h+'px';});}
+
+// hunt: the first Didinium targets the nearest Paramecium, eats it, the Paramecium respawns later
+let hunt=null;
+document.getElementById('hunt').onclick=()=>{if(hunt)return;const d=dids[0];let best=null,bd=1e9;paras.forEach(p=>{if(!p.visible)return;const x=p.position.distanceTo(d.position);if(x<bd){bd=x;best=p;}});if(best)hunt={d,p:best,t:0};};
+
+const tmp=new THREE.Vector3();
+function steer(c,dt){const u=c.userData;u.turn+=(Math.random()-0.5)*0.4*dt;const axis=new THREE.Vector3(Math.sin(u.phase),1,Math.cos(u.phase)).normalize();
+  u.vel.applyAxisAngle(axis,u.turn*dt).setLength(u.speed);
+  if(c.position.length()>bounds*0.85){tmp.copy(c.position).negate().normalize();u.vel.lerp(tmp.multiplyScalar(u.speed),0.08).setLength(u.speed);}
+  c.position.addScaledVector(u.vel,dt*60);c.lookAt(tmp.copy(c.position).add(u.vel));c.rotateY(1.57);
+  if(u.kind==='paramecium')c.rotateX(u.phase+performance.now()*0.004);} // spiral swim
+
+let last=performance.now();const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function tick(now){requestAnimationFrame(tick);const dt=Math.min(0.05,(now-last)/1000);last=now;const T=now*0.001;try{
+  critters.forEach(c=>{const u=c.userData;
+    if(u.kind==='paramecium'||u.kind==='didinium'){if(hunt&&(c===hunt.p||c===hunt.d))return;steer(c,dt);}
+    else if(u.kind==='rotifer'){u.wheels.forEach((w,i)=>w.rotation.z+=(i?-1:1)*8*dt);c.position.y=u.anchor.y+Math.sin(T*1.3+u.phase)*0.6;c.rotation.z=Math.sin(T*0.7+u.phase)*0.25;}
+    else if(u.kind==='stentor'){if(Math.random()<0.002*dt*60&&!u.contract)u.contract=1;if(u.contract){u.contract=Math.max(0,u.contract-dt*2.5);const s=0.35+0.65*(1-u.contract);c.scale.y=s;}else c.scale.y=1+Math.sin(T*0.8)*0.04;}
+    else if(u.kind==='amoeba'){const a=c.geometry.attributes.position,b=u.base;for(let i=0;i<a.count;i++){const k=1+0.18*Math.sin(T*0.9+i*1.7);a.setXYZ(i,b[i*3]*k,b[i*3+1]*(2-k),b[i*3+2]*k);}a.needsUpdate=true;c.geometry.computeVertexNormals();}
+    else if(u.kind==='daphnia'){u.hop-=dt;if(u.hop<=0){u.vel.randomDirection().multiplyScalar(0.9);u.vel.y=Math.abs(u.vel.y)*0.6+0.3;u.hop=1.2+Math.random()*1.5;}u.vel.y-=0.9*dt;u.vel.multiplyScalar(0.96);c.position.addScaledVector(u.vel,dt*10);if(c.position.length()>bounds*0.8)c.position.multiplyScalar(0.98);c.rotation.z=u.vel.x*0.3;}
+  });
+  if(hunt){hunt.t+=dt;const {d,p}=hunt;
+    if(hunt.t<2.5){tmp.subVectors(p.position,d.position);const dd=tmp.length();if(dd>2.2){d.position.addScaledVector(tmp.normalize(),0.32*dt*60*0.25);d.lookAt(p.position);d.rotateX(-1.57);}else hunt.t=Math.max(hunt.t,2.5);}
+    else if(hunt.t<5){const k=(hunt.t-2.5)/2.5;p.scale.setScalar(1-k);p.position.lerp(d.position,0.1);d.scale.setScalar(1+0.35*k);}
+    else if(hunt.t<9){p.visible=false;p.scale.setScalar(1);d.scale.setScalar(1.35-0.35*((hunt.t-5)/4));}
+    else{p.position.randomDirection().multiplyScalar(bounds*0.7);p.visible=true;d.scale.setScalar(1);hunt=null;}
+  }
+  if(!drag&&!reduced)theta+=0.0012;
+  cam.position.set(target.x+dist*Math.sin(phi)*Math.cos(theta),target.y+dist*Math.cos(phi),target.z+dist*Math.sin(phi)*Math.sin(theta));cam.lookAt(target);
+  }catch(err){console.error(err);}
+  renderer.render(scene,cam);drawTags();
+}
+let drag=false,lx=0,ly=0;
+canvas.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;ly=e.clientY});addEventListener('pointerup',()=>drag=false);
+canvas.addEventListener('pointermove',e=>{if(!drag)return;theta+=(e.clientX-lx)*0.008;phi=Math.min(2.6,Math.max(0.4,phi-(e.clientY-ly)*0.008));lx=e.clientX;ly=e.clientY;});
+canvas.addEventListener('wheel',e=>{dist=Math.min(140,Math.max(30,dist+e.deltaY*0.08));},{passive:true});
+function resize(){renderer.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
