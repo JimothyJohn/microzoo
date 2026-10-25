@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+scratch/
+.claude/handoff.md
+.claude/shared-tree-ok
+# Raw footage and derived outputs are large; keep them out of git.
+data/*
+!data/.gitkeep
+*.mp4
+*.avi
+*_tracks.csv
+*_tracks.json

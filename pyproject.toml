@@ -1,0 +1,33 @@
+[project]
+name = "microzoo"
+version = "0.1.0"
+description = "Multi-target tracker and tooling for darkfield pond-microorganism footage"
+requires-python = ">=3.11"
+# Runtime deps are what the Pi installs from requirements.txt. No scipy (see CLAUDE.md).
+dependencies = [
+    "numpy>=1.26",
+    "opencv-python-headless>=4.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "hypothesis>=6",
+    "ruff>=0.6",
+    "ty",
+]
+
+[tool.uv]
+prerelease = "allow"  # ty ships as a pre-release
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "N", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: runs the CLI end to end on synthetic video"]
+addopts = "-ra"

@@ -1,0 +1,10 @@
+{
+  "date": "2026-10-25",
+  "source_jar": "bedford-park-A",
+  "chamber_depth_um": 150,
+  "objective": "4x",
+  "illumination": "darkfield",
+  "exposure_ms": 2.0,
+  "fps": 60,
+  "notes": "Copy to <clip stem>.json next to the video; track.py embeds it in <stem>_tracks.json."
+}
