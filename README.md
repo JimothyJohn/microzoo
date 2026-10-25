@@ -29,6 +29,11 @@ Outputs land next to the input (or `--out-dir`):
 Drop a `<stem>.json` sidecar next to each clip (see `sidecar.example.json`);
 `track.py` embeds it in the summary so the future dataset keeps its labels.
 
+Illumination polarity does not matter: MOG2 flags any deviation from the background, so
+backlit brightfield (dark swimmers on white, the TOMLOV) and darkfield (bright on black)
+run with the same settings. The overlay picks dark or light ink from the first frame.
+`synth.py --polarity brightfield` renders the backlit case.
+
 Knobs: `--min-area` is the one you'll turn. `--scale 0.5` for 1080p on the Pi.
 `--birth-dist` / `--max-dist` / `--max-missed` / `--min-life` for the tracker.
 `python track.py -h` for the rest.

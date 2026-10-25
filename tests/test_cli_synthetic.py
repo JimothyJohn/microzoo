@@ -38,10 +38,12 @@ def track(video: Path, *args: str):
 WALK_SEED = "35"
 
 
-@pytest.fixture(scope="module")
-def walk_clip(tmp_path_factory) -> Path:
+@pytest.fixture(scope="module", params=["darkfield", "brightfield"])
+def walk_case(request, tmp_path_factory) -> tuple[Path, str]:
     """Four swimmers that never come within 30 px of each other, so ID stability
-    is a fair demand. (Crossings swap IDs by design; see the cross test.)"""
+    is a fair demand. (Crossings swap IDs by design; see the cross test.)
+    Rendered in both illumination polarities: darkfield (bright on black) and
+    brightfield (dark on white, the backlit TOMLOV)."""
     import numpy as np
 
     import synth as synth_mod
@@ -53,11 +55,20 @@ def walk_clip(tmp_path_factory) -> Path:
         for j in range(i + 1, 4)
     )
     assert closest > 30, f"seed {WALK_SEED} has a near-crossing at {closest:.1f} px"
-    tmp = tmp_path_factory.mktemp("walk")
-    return synth(tmp, "walk", "--mode", "walk", "--n", "4", "--frames", "150", "--seed", WALK_SEED)
+    tmp = tmp_path_factory.mktemp(f"walk_{request.param}")
+    clip = synth(
+        tmp, "walk", "--n", "4", "--frames", "150", "--seed", WALK_SEED, "--polarity", request.param
+    )
+    return clip, request.param
 
 
-def test_walk_outputs_exist_with_schema_and_stable_ids(walk_clip, frames_of):
+@pytest.fixture(scope="module")
+def walk_clip(walk_case) -> Path:
+    return walk_case[0]
+
+
+def test_walk_outputs_exist_with_schema_and_stable_ids(walk_case, frames_of):
+    walk_clip, polarity = walk_case
     _, out = track(walk_clip)
     assert out["csv"].exists() and out["json"].exists() and out["mp4"].exists()
 
@@ -74,6 +85,7 @@ def test_walk_outputs_exist_with_schema_and_stable_ids(walk_clip, frames_of):
     assert summary["n_tracks_confirmed"] == 4, json.dumps(summary["tracks"], indent=1)
     assert summary["follow_id"] in {t["id"] for t in summary["tracks"]}
     assert summary["meta"]["frames"] == 150
+    assert summary["meta"]["background"] == ("bright" if polarity == "brightfield" else "dark")
     assert summary["csv_rows"] == len(rows)
     assert summary["sidecar"] is None and summary["warnings"] == []
 

@@ -80,37 +80,45 @@ def simulate_cross(frames: int, size: tuple[int, int], speed: float) -> np.ndarr
     return pos
 
 
+POLARITIES = ("darkfield", "brightfield")
+
+
 def render_frame(
     pos: np.ndarray,
     size: tuple[int, int],
     radius: float,
     rng: np.random.Generator,
     noise: float = 6.0,
-    background: int = 18,
-    brightness: int = 200,
     aspect: float = 0.55,
     headings: np.ndarray | None = None,
+    polarity: str = "darkfield",
 ) -> np.ndarray:
-    """One BGR frame with swimmers at ``pos`` (n, 2)."""
+    """One BGR frame with swimmers at ``pos`` (n, 2).
+
+    ``darkfield``: bright bodies (200) on a dark field (18), the glow of a protist
+    against a darkfield stop. ``brightfield``: dark bodies (95) with a lighter
+    translucent centre (165) on a bright field (225), which is what a backlit
+    TOMLOV or a condenser without a stop produces.
+    """
+    if polarity not in POLARITIES:
+        raise ValueError(f"polarity must be one of {POLARITIES}, got {polarity!r}")
     w, h = size
+    bright = polarity == "brightfield"
+    background, body, core = (225, 95, 165) if bright else (18, 200, 200)
     img = np.full((h, w), background, dtype=np.float32)
     img += rng.normal(0, noise, img.shape).astype(np.float32)
-    canvas = np.zeros((h, w), dtype=np.uint8)
+    canvas = np.full((h, w), 255 if bright else 0, dtype=np.uint8)
     for k, (x, y) in enumerate(pos):
         ang = float(np.degrees(headings[k])) if headings is not None else 0.0
-        cv2.ellipse(
-            canvas,
-            (int(round(x)), int(round(y))),
-            (int(round(radius)), max(1, int(round(radius * aspect)))),
-            ang,
-            0,
-            360,
-            brightness,
-            -1,
-            cv2.LINE_AA,
-        )
+        centre = (int(round(x)), int(round(y)))
+        a, b = int(round(radius)), max(1, int(round(radius * aspect)))
+        cv2.ellipse(canvas, centre, (a, b), ang, 0, 360, body, -1, cv2.LINE_AA)
+        if core != body:
+            cv2.ellipse(
+                canvas, centre, (max(1, a // 2), max(1, b // 2)), ang, 0, 360, core, -1, cv2.LINE_AA
+            )
     canvas_f = cv2.GaussianBlur(canvas.astype(np.float32), (0, 0), 0.8)
-    img = np.maximum(img, canvas_f)
+    img = np.minimum(img, canvas_f) if bright else np.maximum(img, canvas_f)
     gray = np.clip(img, 0, 255).astype(np.uint8)
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 
@@ -123,6 +131,7 @@ def write_clip(
     radius: float,
     seed: int,
     noise: float = 6.0,
+    polarity: str = "darkfield",
 ) -> Path:
     """Encode ``pos`` (frames, n, 2) to ``out`` and write ``<stem>_truth.csv``."""
     w, h = size
@@ -137,7 +146,11 @@ def write_clip(
         if f + 1 < frames:
             d = pos[f + 1] - pos[f]
             headings = np.arctan2(d[:, 1], d[:, 0])
-        wr.write(render_frame(pos[f], size, radius, rng, noise=noise, headings=headings))
+        wr.write(
+            render_frame(
+                pos[f], size, radius, rng, noise=noise, headings=headings, polarity=polarity
+            )
+        )
     wr.release()
     truth = out.with_name(out.stem + "_truth.csv")
     with truth.open("w", newline="") as fh:
@@ -173,6 +186,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--speed", type=float, default=3.0, help="px per frame")
     p.add_argument("--radius", type=float, default=6.0, help="swimmer semi-major axis, px")
     p.add_argument("--noise", type=float, default=6.0, help="background noise sigma")
+    p.add_argument(
+        "--polarity",
+        choices=POLARITIES,
+        default="darkfield",
+        help="darkfield: bright swimmers on black; brightfield: dark swimmers on white (backlit)",
+    )
     p.add_argument("--seed", type=int, default=0)
     return p
 
@@ -188,7 +207,9 @@ def main(argv: list[str] | None = None) -> int:
         pos = np.repeat(simulate(a.n, 1, a.size, 0.0, a.seed), a.frames, axis=0)
     else:
         pos = simulate(a.n, a.frames, a.size, a.speed, a.seed)
-    truth = write_clip(a.out, pos, a.size, a.fps, a.radius, a.seed, noise=a.noise)
+    truth = write_clip(
+        a.out, pos, a.size, a.fps, a.radius, a.seed, noise=a.noise, polarity=a.polarity
+    )
     print(f"{a.out} ({pos.shape[0]} frames, {pos.shape[1]} swimmers) + {truth.name}")
     return 0
 

@@ -258,9 +258,12 @@ def _writer(path: Path, fps: float, size: tuple[int, int]) -> cv2.VideoWriter:
     return wr
 
 
-def _color(track_id: int) -> tuple[int, int, int]:
+def _color(track_id: int, bright_background: bool = False) -> tuple[int, int, int]:
+    """Stable per-id hue. Full value on a dark field; darker on a bright one so the
+    overlay stays legible on backlit (brightfield) footage."""
     rng = np.random.default_rng(track_id)
-    hsv = np.array([[[int(rng.integers(0, 180)), 200, 255]]], dtype=np.uint8)
+    value = 150 if bright_background else 255
+    hsv = np.array([[[int(rng.integers(0, 180)), 220, value]]], dtype=np.uint8)
     b, g, r = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0, 0]
     return int(b), int(g), int(r)
 
@@ -319,12 +322,17 @@ def _pass1(args: argparse.Namespace, path: Path) -> tuple[Tracker, dict]:
 
     idx = 0
     t0 = time.monotonic()
+    median_gray = 0.0
     while True:
         ok, frame = cap.read()
         if not ok:
             break
         small = frame if scale == 1.0 else cv2.resize(frame, None, fx=scale, fy=scale)
         gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+        if idx == 0:
+            # Polarity of the illumination. MOG2 does not care (foreground is any
+            # deviation from the background model); the overlay colours do.
+            median_gray = float(np.median(gray))
         fg = mog.apply(gray)
         if idx >= args.warmup:
             fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, kernel)
@@ -343,6 +351,8 @@ def _pass1(args: argparse.Namespace, path: Path) -> tuple[Tracker, dict]:
         "fps": fps,
         "frames": idx,
         "frames_reported": n_reported,
+        "median_gray": median_gray,
+        "background": "bright" if median_gray > 127 else "dark",
         "pass1_seconds": round(time.monotonic() - t0, 3),
         "max_area": max_area,
     }
@@ -382,6 +392,8 @@ def _pass2(
         outputs["follow_video"] = follow_out.name
 
     trail = args.trail
+    bright = meta.get("background") == "bright"
+    hud = (0, 0, 0) if bright else (255, 255, 255)
     idx = 0
     while True:
         ok, frame = cap.read()
@@ -392,7 +404,7 @@ def _pass2(
             follow_wr.write(_crop(frame, cx, cy, args.follow_size))
         if overlay is not None:
             for t in by_frame.get(idx, ()):
-                col = _color(t.id)
+                col = _color(t.id, bright)
                 pts = pts_by_track[t.id]
                 hist = [pts[f] for f in range(max(t.first_frame, idx - trail), idx + 1) if f in pts]
                 for a, b in zip(hist, hist[1:], strict=False):
@@ -425,7 +437,7 @@ def _pass2(
                 (6, 14),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.4,
-                (255, 255, 255),
+                hud,
                 1,
                 cv2.LINE_AA,
             )
