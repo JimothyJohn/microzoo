@@ -81,10 +81,10 @@ def test_tracker_follows_every_paramecium_through_the_debris(eco_clip):
     assert set(s["coverage"]) == paras, s
     for oid in paras:
         assert s["coverage"][oid] > 0.7, (oid, s)
-        # IDs break on avoidance reversals, on bumps between swimmers and when a
-        # debris speck merges into the blob: the greedy tracker's known weakness,
-        # measured here at 0.17..0.42 for v1 (see TODO.md). Coverage is the contract.
-        assert s["stability"][oid] > 0.12, (oid, s)
+        # v1 greedy: 0.17..0.42. Auction + area gate + fragment rule + last-position
+        # anchor: 0.27..0.63. What remains is two bodies merging into one blob and
+        # coming apart with swapped ids (see TODO.md). Coverage is the contract.
+        assert s["stability"][oid] > 0.25, (oid, s)
     assert s["median_error"] < 4.0, s
 
 

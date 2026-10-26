@@ -35,7 +35,10 @@ run with the same settings. The overlay picks dark or light ink from the first f
 `synth.py --polarity brightfield` renders the backlit case.
 
 Knobs: `--min-area` is the one you'll turn. `--scale 0.5` for 1080p on the Pi.
-`--birth-dist` / `--max-dist` / `--max-missed` / `--min-life` for the tracker.
+`--birth-dist` / `--max-dist` / `--max-missed` / `--min-life` for the tracker. Matching is a
+pure-numpy auction (global optimum; `--assign greedy` for v1 behaviour) with an area gate
+(`--area-ratio`), blob-size birth suppression (`--fragment-scale`) and gating on the last
+measured position as well as the prediction, so reversing swimmers keep their id.
 `python track.py -h` for the rest.
 
 ## Simulated ecosystem

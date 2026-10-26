@@ -107,7 +107,7 @@ details[open] summary{border-bottom:1px solid var(--line);margin-bottom:10px}
     <figure><video src="media/eco_bf.mp4" autoplay muted loop playsinline controls></video>
       <figcaption><b>Same tank, backlit</b>What the TOMLOV sees: dark bodies on a bright field. One flag on the renderer, same tracker settings.</figcaption></figure>
     <figure><video src="media/eco_tracks.mp4" autoplay muted loop playsinline controls></video>
-      <figcaption><b>track.py on the darkfield clip</b>Coverage is good; IDs break on avoidance reversals and bumps. The sim measures the tracker's weakness instead of guessing at it.</figcaption></figure>
+      <figcaption><b>track.py on the darkfield clip</b>Coverage is good. The sim measured why IDs broke (debris tracks stealing bodies, reversals outrunning the prediction) and the fixes went into the tracker; what is left is two swimmers merging into one blob.</figcaption></figure>
   </div>
 </section>
 
@@ -120,7 +120,8 @@ details[open] summary{border-bottom:1px solid var(--line);margin-bottom:10px}
       <tr><td>cruising speed</td><td class="n">1000 µm/s</td><td class="n">≈ 820 µm/s (avoidance, wobble)</td><td class="n">759 µm/s</td></tr>
       <tr><td>convection</td><td class="n">30 µm/s</td><td class="n">30 µm/s</td><td class="n">28 µm/s (from 30 debris specks)</td></tr>
       <tr><td>track coverage</td><td></td><td></td><td class="n">0.87 – 0.94 per organism</td></tr>
-      <tr><td>ID stability</td><td></td><td></td><td class="n">0.17 – 0.42 (the v1 weakness)</td></tr>
+      <tr><td>ID stability, v1 greedy</td><td></td><td></td><td class="n">0.17 – 0.42</td></tr>
+      <tr><td>ID stability, auction + area gate + last-position anchor</td><td></td><td></td><td class="n">0.27 – 0.63 (what remains: merge/split swaps)</td></tr>
     </tbody>
   </table>
   <pre>uv run python ecosim.py --out data/eco.mp4 --frames 450 --size 640x480 --um-per-px 3 --seed 1

@@ -2,7 +2,8 @@
 """track.py: v1 multi-target tracker for darkfield pond footage.
 
 Pipeline: MOG2 background subtraction -> morphology -> contours -> per-track
-constant-velocity Kalman -> greedy nearest-neighbour assignment.
+constant-velocity Kalman -> global assignment (pure-numpy auction; --assign
+greedy for the old nearest-neighbour matching).
 
 Two passes over the video. Pass 1 builds tracks (optionally on a downscaled
 frame, --scale). Pass 2 re-reads the full-resolution video and writes:
@@ -14,7 +15,6 @@ frame, --scale). Pass 2 re-reads the full-resolution video and writes:
                               plus <stem>.json (the clip sidecar) if present
 
 Runtime deps: numpy, opencv (headless). No scipy, so the Pi can run it.
-Known weakness: greedy assignment swaps IDs when two swimmers cross.
 """
 
 from __future__ import annotations
@@ -34,6 +34,8 @@ __all__ = [
     "Detection",
     "Track",
     "Tracker",
+    "ASSIGNERS",
+    "auction_assign",
     "detect",
     "greedy_assign",
     "run",
@@ -123,21 +125,46 @@ def detect(
     return out
 
 
-def greedy_assign(preds: np.ndarray, dets: np.ndarray, max_dist: float) -> list[tuple[int, int]]:
+def _distances(
+    preds: np.ndarray,
+    dets: np.ndarray,
+    feasible: np.ndarray | None,
+    alt: np.ndarray | None,
+) -> np.ndarray:
+    """(N, M) distances; the smaller of prediction->det and ``alt``->det when
+    ``alt`` (N, 2, e.g. last measured positions) is given; inf where forbidden."""
+    d = np.linalg.norm(preds[:, None, :] - dets[None, :, :], axis=2)
+    if alt is not None:
+        alt = np.asarray(alt, dtype=np.float64).reshape(-1, 2)
+        d = np.fmin(d, np.linalg.norm(alt[:, None, :] - dets[None, :, :], axis=2))
+    d = np.where(np.isfinite(d), d, np.inf)
+    if feasible is not None:
+        d = np.where(np.asarray(feasible, dtype=bool).reshape(d.shape), d, np.inf)
+    return d
+
+
+def greedy_assign(
+    preds: np.ndarray,
+    dets: np.ndarray,
+    max_dist: float,
+    feasible: np.ndarray | None = None,
+    alt: np.ndarray | None = None,
+) -> list[tuple[int, int]]:
     """Greedy nearest-neighbour matching.
 
     ``preds`` is (N, 2), ``dets`` is (M, 2). Returns (pred_index, det_index)
     pairs, each index used at most once, every pair closer than ``max_dist``.
-    Pairs are taken in increasing distance order, which is what makes two
-    crossing swimmers swap IDs. The fix is a global assignment (Hungarian);
-    left out to keep scipy off the Pi.
+    ``feasible`` (N, M) bool forbids pairs outright (the size gate); ``alt``
+    (N, 2) gives each prediction a second anchor, the last measured position,
+    so a swimmer that reverses stays within reach while the velocity catches up.
+    Pairs are taken in increasing distance order, which is what makes one
+    prediction steal its neighbour's detection; ``auction_assign`` fixes that.
     """
     preds = np.asarray(preds, dtype=np.float64).reshape(-1, 2)
     dets = np.asarray(dets, dtype=np.float64).reshape(-1, 2)
     if preds.shape[0] == 0 or dets.shape[0] == 0 or not max_dist > 0:
         return []
-    d = np.linalg.norm(preds[:, None, :] - dets[None, :, :], axis=2)
-    d = np.where(np.isfinite(d), d, np.inf)
+    d = _distances(preds, dets, feasible, alt)
     order = np.argsort(d, axis=None, kind="stable")
     used_p = np.zeros(preds.shape[0], dtype=bool)
     used_d = np.zeros(dets.shape[0], dtype=bool)
@@ -157,6 +184,64 @@ def greedy_assign(preds: np.ndarray, dets: np.ndarray, max_dist: float) -> list[
     return pairs
 
 
+def auction_assign(
+    preds: np.ndarray,
+    dets: np.ndarray,
+    max_dist: float,
+    feasible: np.ndarray | None = None,
+    alt: np.ndarray | None = None,
+) -> list[tuple[int, int]]:
+    """Global one-to-one matching by Bertsekas' auction algorithm, pure numpy.
+
+    Same contract as ``greedy_assign`` (pairs under ``max_dist`` and allowed by
+    ``feasible``, each index once) but it maximises the *total* benefit, where a pair is worth
+    ``2*max_dist - distance``: at least ``max_dist``, so a matching with one
+    more pair always beats a shorter one, and among equal-length matchings the
+    shortest total distance wins. That is what keeps a prediction from stealing
+    its neighbour's detection and leaving the neighbour unmatched.
+
+    Tracks bid for detections; a detection goes to the highest bidder and its
+    price rises by at least ``eps = max_dist / 256``; a track whose best value
+    drops below zero stays unmatched for good (prices only rise). The result is
+    within ``n * eps`` of optimal, which keeps the cardinality argument above
+    intact for up to 256 tracks. Deterministic. No eps-scaling: the usual
+    scaled variant clears assignments between phases, which with an "unmatched"
+    option worth 0 leaves every bidder priced out of the second phase.
+    """
+    preds = np.asarray(preds, dtype=np.float64).reshape(-1, 2)
+    dets = np.asarray(dets, dtype=np.float64).reshape(-1, 2)
+    n, m = preds.shape[0], dets.shape[0]
+    if n == 0 or m == 0 or not max_dist > 0 or not np.isfinite(max_dist):
+        return []
+    d = _distances(preds, dets, feasible, alt)
+    benefit = np.where(d < max_dist, 2.0 * max_dist - d, -np.inf)
+    bidders = [i for i in range(n) if np.isfinite(benefit[i]).any()]
+    price = np.zeros(m)
+    owner = np.full(m, -1)
+    assigned = np.full(n, -1)
+    eps = max_dist / 256
+    queue = bidders
+    while queue:
+        i = queue.pop()
+        value = benefit[i] - price
+        j = int(np.argmax(value))
+        best = float(value[j])
+        if not best > 0:  # staying unmatched (worth 0) beats every detection now
+            continue
+        value[j] = -np.inf
+        second = max(float(value.max()), 0.0)
+        price[j] += best - second + eps
+        if owner[j] >= 0:
+            assigned[owner[j]] = -1
+            queue.append(int(owner[j]))
+        owner[j] = i
+        assigned[i] = j
+    return [(i, int(j)) for i, j in enumerate(assigned) if j >= 0]
+
+
+ASSIGNERS = {"auction": auction_assign, "greedy": greedy_assign}
+
+
 class Tracker:
     """Owns the live tracks; call ``step`` once per frame in order."""
 
@@ -167,7 +252,25 @@ class Tracker:
         birth_dist: float | None = None,
         process_noise: float = 1e-2,
         measurement_noise: float = 1.0,
+        assign: str = "auction",
+        fragment_scale: float = 0.6,
+        area_ratio: float = 6.0,
+        anchor_last: bool = True,
     ):
+        # Gate on the nearer of the Kalman prediction and the last measured position.
+        # A Paramecium's avoiding reaction reverses it in one frame; the constant-
+        # velocity prediction keeps going and would be out of reach three frames later.
+        self.anchor_last = anchor_last
+        # A track and a detection may only pair if their areas are within this
+        # factor of each other (0 disables). Fragments of one body stay within it;
+        # a debris speck and a Paramecium do not.
+        self.area_ratio = area_ratio
+        if assign not in ASSIGNERS:
+            raise ValueError(f"assign must be one of {sorted(ASSIGNERS)}, got {assign!r}")
+        self._assign = ASSIGNERS[assign]
+        # Birth suppression also scales with the blob: a 50 px body whose dim interior
+        # splits the mask sheds fragments 25 px from its centre, well past birth_dist.
+        self.fragment_scale = fragment_scale
         self.max_dist = max_dist
         self.max_missed = max_missed
         # An unmatched detection closer than this to any live track's prediction
@@ -185,8 +288,23 @@ class Tracker:
         for t in self.live:
             t.kf.predict()
         preds = np.array([t.predicted_xy() for t in self.live], dtype=np.float64).reshape(-1, 2)
+        # each live track's last blob extent: a body that splits sheds fragments this far out
+        extent = np.array(
+            [max(t.points[-1][4], t.points[-1][5]) for t in self.live], dtype=np.float64
+        )
+        # last measured position: the second anchor for gating (reversals)
+        last_xy = np.array([t.points[-1][1:3] for t in self.live], dtype=np.float64).reshape(-1, 2)
         pts = np.array([(d.x, d.y) for d in dets], dtype=np.float64).reshape(-1, 2)
-        pairs = greedy_assign(preds, pts, self.max_dist)
+        feasible = None
+        if self.area_ratio > 0 and preds.shape[0] and pts.shape[0]:
+            # a 9 px debris speck may not claim a 60 px body that swam past it
+            last = np.array([t.points[-1][3] for t in self.live], dtype=np.float64)
+            now = np.array([d.area for d in dets], dtype=np.float64)
+            ratio = np.maximum(last[:, None] / now[None, :], now[None, :] / last[:, None])
+            feasible = ratio <= self.area_ratio
+        pairs = self._assign(
+            preds, pts, self.max_dist, feasible, last_xy if self.anchor_last else None
+        )
 
         matched_t = set()
         matched_d = set()
@@ -215,8 +333,11 @@ class Tracker:
             if j in matched_d:
                 continue
             if preds.shape[0] and self.birth_dist > 0:
-                near = np.linalg.norm(preds - pts[j], axis=1).min()
-                if near < self.birth_dist:
+                dist = np.linalg.norm(preds - pts[j], axis=1)
+                if self.anchor_last:
+                    dist = np.fmin(dist, np.linalg.norm(last_xy - pts[j], axis=1))
+                thr = np.maximum(self.birth_dist, self.fragment_scale * extent)
+                if (dist < thr).any():
                     continue
             kf = _make_kalman(d.x, d.y, self.process_noise, self.measurement_noise)
             t = Track(id=self._next_id, first_frame=frame_idx, last_frame=frame_idx, kf=kf)
@@ -317,7 +438,14 @@ def _pass1(args: argparse.Namespace, path: Path) -> tuple[Tracker, dict]:
     )
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     tracker = Tracker(
-        max_dist=args.max_dist, max_missed=args.max_missed, birth_dist=args.birth_dist
+        max_dist=args.max_dist,
+        max_missed=args.max_missed,
+        birth_dist=args.birth_dist,
+        assign=args.assign,
+        fragment_scale=args.fragment_scale,
+        area_ratio=args.area_ratio,
+        process_noise=args.process_noise,
+        anchor_last=not args.no_anchor_last,
     )
 
     idx = 0
@@ -629,11 +757,45 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-dist", type=float, default=40.0, help="max assignment distance, full-res px"
     )
     p.add_argument(
+        "--assign",
+        choices=sorted(ASSIGNERS),
+        default="auction",
+        help="track/detection matching: auction (global optimum, default) or greedy "
+        "(nearest first; swaps IDs when swimmers cross)",
+    )
+    p.add_argument(
         "--birth-dist",
         type=float,
         default=None,
         help="unmatched blobs closer than this to a live track are fragments, not new tracks "
         "(default: half of --max-dist; 0 disables)",
+    )
+    p.add_argument(
+        "--fragment-scale",
+        type=float,
+        default=0.6,
+        help="also treat unmatched blobs within this fraction of a live track's blob extent "
+        "(max of w, h) as fragments; large bodies with dim interiors split in the mask",
+    )
+    p.add_argument(
+        "--area-ratio",
+        type=float,
+        default=6.0,
+        help="a track may only take a blob whose area is within this factor of its last one "
+        "(keeps debris tracks from stealing a swimmer that passes; 0 disables)",
+    )
+    p.add_argument(
+        "--no-anchor-last",
+        action="store_true",
+        help="gate only on the Kalman prediction, not also on the last measured position "
+        "(the default keeps reversing swimmers; this is the v1 behaviour)",
+    )
+    p.add_argument(
+        "--process-noise",
+        type=float,
+        default=1e-2,
+        help="Kalman process noise; higher lets the velocity estimate turn faster after a "
+        "reversal, lower trusts the straight-line prediction more",
     )
     p.add_argument(
         "--max-missed",
