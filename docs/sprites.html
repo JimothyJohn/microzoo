@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Microzoo Cast</title>
+<meta name="description" content="Procedural sprites of every organism in the microzoo cast beside the darkfield and brightfield photographs they were drawn from, plus the simulated drop of water the tracker is tested on.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Same notebook as index.html. One row per species: the animated sprite (both polarities) on the
+   left, the reference photographs it was drawn from on the right. Clips of the sim below. */
+:root{
+  --bg:#07151a; --panel:#0d2128; --fg:#dbe9ec; --muted:#8fa7ae; --line:#1d3a42;
+  --accent:#2fd4d9; --accent-ink:#8ff0f3; --glow:#5ff7fb; --warn:#e8a04f; --ok:#5ccf8a;
+  --display:"Sora",system-ui,sans-serif; --body:"Source Sans 3",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#f3f6f6; --panel:#ffffff; --fg:#17262b; --muted:#5a6f76; --line:#d3dde0;
+  --accent:#0b8a8f; --accent-ink:#0a6a6e; --glow:#15c3c9; --warn:#b2651b; --ok:#2e8b57; color-scheme:light } }
+:root[data-theme="light"]{
+  --bg:#f3f6f6; --panel:#ffffff; --fg:#17262b; --muted:#5a6f76; --line:#d3dde0;
+  --accent:#0b8a8f; --accent-ink:#0a6a6e; --glow:#15c3c9; --warn:#b2651b; --ok:#2e8b57; color-scheme:light }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:17px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 60px}
+.wrap{max-width:960px;margin:0 auto;display:grid;gap:22px}
+header{display:grid;gap:8px}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(32px,6vw,50px);line-height:1.02;margin:0;letter-spacing:-.02em;text-wrap:balance}
+h1 em{font-style:normal;color:var(--accent)}
+.lede{color:var(--muted);margin:0;max-width:62ch;font-size:19px}
+nav{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:15px}
+nav a{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid transparent}
+nav a:hover{border-color:var(--accent)}
+h2{font-family:var(--display);font-weight:600;font-size:22px;margin:0 0 6px;text-wrap:balance}
+h3{font-family:var(--display);font-weight:600;font-size:17px;margin:0}
+p{margin:0 0 10px;max-width:70ch}
+a{color:var(--accent-ink)}
+code{font-family:var(--mono);font-size:.9em}
+pre{font-family:var(--mono);font-size:.85em;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:12px 14px;overflow-x:auto;margin:0 0 10px;line-height:1.5}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent-ink)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.species{display:grid;grid-template-columns:minmax(0,180px) minmax(0,1fr);gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+@media (max-width:560px){.species{grid-template-columns:1fr}}
+.sprite{display:grid;gap:6px;align-content:start}
+.sprite canvas{width:100%;aspect-ratio:1;border-radius:6px;background:#121212;image-rendering:auto;display:block}
+.sprite .meta{font-size:13px;color:var(--muted)}
+.sprite .meta b{display:block;font-family:var(--display);font-size:17px;color:var(--fg)}
+.refs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start}
+.ref{display:grid;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+.ref img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px;background:#000;display:block}
+.ref .tag{font:600 10px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink)}
+.ref .note{color:var(--fg);font-size:13px;line-height:1.35}
+.ref a{word-break:break-word}
+.clips{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+figure{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+figure video{display:block;width:100%;aspect-ratio:4/3;background:#000}
+figcaption{padding:10px 12px;font-size:14px;color:var(--muted)}
+figcaption b{color:var(--fg);font-family:var(--display);display:block;font-size:15px}
+.callout{border-left:3px solid var(--accent);padding:8px 12px;background:var(--panel);border-radius:0 6px 6px 0;max-width:none}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+footer{color:var(--muted);font-size:14px}
+details{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:0 14px}
+summary{cursor:pointer;padding:12px 0;font-family:var(--display);font-weight:600}
+details[open] summary{border-bottom:1px solid var(--line);margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">microzoo · the cast, drawn from photographs</div>
+  <h1>Sprites that look like the <em>pond</em> will.</h1>
+  <p class="lede">Every organism in the cheat sheet, rendered the way darkfield and backlit brightfield show it, next to the Wikimedia Commons photographs the look was taken from. Below, the simulated drop of water those sprites swim in.</p>
+  <nav>
+    <a href="index.html">← microzoo</a>
+    <a href="#cast">Cast</a>
+    <a href="#clips">Simulated clips</a>
+    <a href="#loop">The loop</a>
+    <a href="tank.html">3D tank</a>
+  </nav>
+</header>
+
+<section id="cast">
+  <h2>Cast</h2>
+  <p>Each sprite is procedural: a body outline per species, a seeded granule field that rides with the body, a thin bright pellicle rim, food vacuoles, a darker macronucleus and a flickering cilia halo. The same anatomy is rendered as a dark rim and grey interior under brightfield. Sizes in the sheet are per-species; the atlas carries each one's µm per pixel.</p>
+  <div class="toolbar" role="group" aria-label="Illumination">
+    <button id="pol-darkfield" aria-pressed="true">Darkfield</button>
+    <button id="pol-brightfield" aria-pressed="false">Brightfield</button>
+    <span style="font-size:13px;color:var(--muted)">Photographs: Wikimedia Commons, each credited with its licence. Hover a note for what the sprite copies.</span>
+  </div>
+  <div id="cast-rows" style="display:grid;gap:12px"></div>
+</section>
+
+<section id="clips">
+  <h2>Simulated clips</h2>
+  <p>Agent-based behaviour from <code>ecosim.py</code>: Paramecium spiral, bump and back off; Didinium hunt, strike, swallow and digest; Stentor snaps shut when something passes its bell; rotifers hold on; Lacrymaria whips its neck out; a slow rotating convection current moves the debris and every free swimmer. Deterministic per seed, with ground-truth tracks and an event log.</p>
+  <div class="clips">
+    <figure><video src="media/eco.mp4" autoplay muted loop playsinline controls></video>
+      <figcaption><b>Darkfield, 3 µm/px, 15 s</b>8 Paramecium, 2 Didinium, 1 Stentor, 2 rotifers, Lacrymaria, Dileptus, 30 debris. Two captures and four Stentor contractions in this seed.</figcaption></figure>
+    <figure><video src="media/hunt.mp4" autoplay muted loop playsinline controls></video>
+      <figcaption><b>The hunt, 1.8 µm/px</b>One Didinium, five Paramecium. Strike at 0.3 s, the prey folds crosswise and is drawn in over four seconds, the hunter swells and slows to digest.</figcaption></figure>
+    <figure><video src="media/eco_bf.mp4" autoplay muted loop playsinline controls></video>
+      <figcaption><b>Same tank, backlit</b>What the TOMLOV sees: dark bodies on a bright field. One flag on the renderer, same tracker settings.</figcaption></figure>
+    <figure><video src="media/eco_tracks.mp4" autoplay muted loop playsinline controls></video>
+      <figcaption><b>track.py on the darkfield clip</b>Coverage is good. The sim measured why IDs broke (debris tracks stealing bodies, reversals outrunning the prediction) and the fixes went into the tracker; what is left is two swimmers merging into one blob.</figcaption></figure>
+  </div>
+</section>
+
+<section id="loop">
+  <h2>The loop: cheat sheet → footage → tracks → cheat sheet</h2>
+  <p class="callout"><code>species.py</code> holds the numbers (speed, turn rate, strike radius, contraction time) in micrometres and seconds. <code>ecosim.py</code> turns them into footage. <code>track.py</code> turns footage into tracks. <code>trackstats.py</code> turns tracks back into the same numbers, convection subtracted, as a file <code>ecosim.py --params</code> accepts. Today the loop is closed on synthetic data; once the jar delivers real swimmers and G4 labels, the fitted file replaces the typed one.</p>
+  <table>
+    <thead><tr><th>Paramecium, seed 11, 4 µm/px</th><th>typed in species.py</th><th>truth from the sim</th><th>recovered from tracks</th></tr></thead>
+    <tbody>
+      <tr><td>cruising speed</td><td class="n">1000 µm/s</td><td class="n">≈ 820 µm/s (avoidance, wobble)</td><td class="n">759 µm/s</td></tr>
+      <tr><td>convection</td><td class="n">30 µm/s</td><td class="n">30 µm/s</td><td class="n">28 µm/s (from 30 debris specks)</td></tr>
+      <tr><td>track coverage</td><td></td><td></td><td class="n">0.87 – 0.94 per organism</td></tr>
+      <tr><td>ID stability, v1 greedy</td><td></td><td></td><td class="n">0.17 – 0.42</td></tr>
+      <tr><td>ID stability, auction + area gate + last-position anchor</td><td></td><td></td><td class="n">0.27 – 0.63 (what remains: merge/split swaps)</td></tr>
+    </tbody>
+  </table>
+  <pre>uv run python ecosim.py --out data/eco.mp4 --frames 450 --size 640x480 --um-per-px 3 --seed 1
+uv run python track.py data/eco.mp4 --min-area 20
+uv run python trackstats.py data/eco_tracks.csv --emit-params data/fitted.json
+uv run python ecosim.py --out data/eco2.mp4 --params data/fitted.json</pre>
+  <details>
+    <summary>How the sprites are built</summary>
+    <p>Outline: Paramecium is an ellipse with a rounder anterior; Didinium a superellipse barrel with a snout and two ciliary girdles; Stentor a half-width profile that widens as <i>u</i><sup>1.5</sup> to a bell and collapses to a ball at contraction 1 (length × 0.25); rotifer a spindle with a foot and two corona discs that pulse in antiphase; Lacrymaria a teardrop with a quadratic-Bézier neck in pixels; Dileptus an ellipse over the rear two thirds plus a tapering trunk; Daphnia an oval with a tail spine, an eye and two antennae; amoeba and debris are radial noise.</p>
+    <p>Shading: mask minus its erosion is the rim; a band-limited noise field, seeded per organism so it never swims against the body, is the granule texture; dilation minus mask, blurred and flickered by a per-frame RNG, is the cilia halo. Darkfield intensity = 0.3·interior + 0.9·rim + halo + vacuoles − nucleus. Brightfield darkness = 0.5·interior + 0.7·rim + nucleus − vacuoles. The sprite returns both maps; the compositor takes the max over a dark field or the min under a bright one.</p>
+  </details>
+</section>
+
+<footer>Sprite sheets and atlas: <a href="media/sprites_darkfield.png">darkfield</a>, <a href="media/sprites_brightfield.png">brightfield</a>, <a href="media/sprites.json">sprites.json</a>. Reference catalogue with licences: <a href="media/references.json">references.json</a>. Regenerate with <code>make docs-media</code>.</footer>
+</div>
+
+<script>
+(function(){
+const rows=document.getElementById('cast-rows');
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let polarity='darkfield';
+const sheets={};
+let atlas=null, refs=null;
+const ROLE={paramecium:'prey / grazer · 220 µm · the benchmark target',didinium:'predator of Paramecium · 140 µm',stentor:'sessile filter feeder · 900 µm · contracts in one frame',rotifer:'filter feeder · 320 µm · anchored, lets go sometimes',lacrymaria:'predator · 110 µm body, neck to 800 µm',dileptus:'predator · 380 µm · trunk sweeps',amoeba:'engulfer · 260 µm · timelapse only',daphnia:'big prey · 1.5 mm · hops 10 mm/s'};
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function build(){
+  rows.innerHTML='';
+  const names=Object.keys(atlas.species);
+  for(const name of names){
+    const meta=atlas.species[name];
+    const row=document.createElement('div');row.className='species';
+    const sp=document.createElement('div');sp.className='sprite';
+    const c=document.createElement('canvas');c.width=atlas.cell;c.height=atlas.cell;c.setAttribute('role','img');c.setAttribute('aria-label',name+' sprite, animated');
+    sp.appendChild(c);
+    const m=document.createElement('div');m.className='meta';
+    m.innerHTML='<b>'+esc(name)+'</b>'+esc(ROLE[name]||meta.role)+'<br>sheet scale '+meta.um_per_px.toFixed(1)+' µm/px';
+    sp.appendChild(m);row.appendChild(sp);
+    const rf=document.createElement('div');rf.className='refs';
+    const mine=(refs?refs.items:[]).filter(r=>r.species===name);
+    for(const r of mine){
+      const d=document.createElement('div');d.className='ref';
+      const isVideo=r.mime.startsWith('video')||r.mime==='application/ogg';
+      const img=r.thumb?'<img loading="lazy" src="'+esc(r.thumb)+'" alt="'+esc(r.title)+'">':'';
+      d.innerHTML=img+'<span class="tag">'+esc(r.lighting)+(isVideo?' · video':'')+'</span><span class="note">'+esc(r.what_to_look_for)+'</span><span><a href="'+esc(r.page)+'" rel="noopener">'+esc(r.title.replace(/\s*\(\d+\)\.\w+$/,'').replace(/\.\w+$/,''))+'</a> · '+esc(r.artist||'')+' · '+esc(r.license)+'</span>';
+      rf.appendChild(d);
+    }
+    if(!mine.length)rf.innerHTML='<span class="ref"><span class="note">No photograph catalogued yet; drawn from the cheat sheet.</span></span>';
+    row.appendChild(rf);rows.appendChild(row);
+    c.dataset.row=meta.row;
+  }
+}
+let frame=0,last=0;
+function tick(now){
+  requestAnimationFrame(tick);
+  const img=sheets[polarity];if(!img||!atlas)return;
+  if(now-last<83)return;last=now;
+  if(!reduced)frame=(frame+1)%atlas.frames;
+  const cell=atlas.cell;
+  for(const c of rows.querySelectorAll('canvas')){
+    const ctx=c.getContext('2d');
+    ctx.drawImage(img,frame*cell,c.dataset.row*cell,cell,cell,0,0,cell,cell);
+  }
+}
+function setPol(p){polarity=p;for(const q of ['darkfield','brightfield'])document.getElementById('pol-'+q).setAttribute('aria-pressed',String(q===p));}
+document.getElementById('pol-darkfield').onclick=()=>setPol('darkfield');
+document.getElementById('pol-brightfield').onclick=()=>setPol('brightfield');
+Promise.all([
+  fetch('media/sprites.json').then(r=>r.json()),
+  fetch('media/references.json').then(r=>r.json()).catch(()=>null),
+]).then(([a,r])=>{
+  atlas=a;refs=r;
+  for(const [pol,file] of Object.entries(a.sheets)){const im=new Image();im.src='media/'+file;sheets[pol]=im;}
+  build();requestAnimationFrame(tick);
+}).catch(err=>{rows.innerHTML='<p class="callout">Could not load media/sprites.json: '+esc(err)+'</p>';});
+})();
+</script>
+</body>
+</html>
