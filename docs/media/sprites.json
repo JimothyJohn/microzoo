@@ -1,0 +1,58 @@
+{
+ "cell": 128,
+ "frames": 12,
+ "sheets": {
+  "darkfield": "sprites_darkfield.png",
+  "brightfield": "sprites_brightfield.png"
+ },
+ "species": {
+  "paramecium": {
+   "row": 0,
+   "um_per_px": 2.1484,
+   "length_um": 220,
+   "role": "prey/grazer"
+  },
+  "didinium": {
+   "row": 1,
+   "um_per_px": 1.3672,
+   "length_um": 140,
+   "role": "predator of Paramecium"
+  },
+  "stentor": {
+   "row": 2,
+   "um_per_px": 8.7891,
+   "length_um": 900,
+   "role": "sessile filter feeder"
+  },
+  "rotifer": {
+   "row": 3,
+   "um_per_px": 3.125,
+   "length_um": 320,
+   "role": "filter feeder"
+  },
+  "lacrymaria": {
+   "row": 4,
+   "um_per_px": 5.5542,
+   "length_um": 110,
+   "role": "predator"
+  },
+  "dileptus": {
+   "row": 5,
+   "um_per_px": 3.7109,
+   "length_um": 380,
+   "role": "predator"
+  },
+  "amoeba": {
+   "row": 6,
+   "um_per_px": 2.5391,
+   "length_um": 260,
+   "role": "engulfer"
+  },
+  "daphnia": {
+   "row": 7,
+   "um_per_px": 14.6484,
+   "length_um": 1500,
+   "role": "big prey"
+  }
+ }
+}
