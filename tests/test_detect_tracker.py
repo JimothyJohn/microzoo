@@ -131,6 +131,53 @@ def test_fragment_scale_suppresses_births_within_a_big_blob():
     assert len(loose.live) == 2
 
 
+def _crossing(frames: int = 40, merge_px: float = 14.0):
+    """A moves right (+4/frame, y=0), B moves left (-4/frame, y=1). While they overlap
+    the detector sees one blob at the midpoint with twice the area."""
+    out = []
+    for f in range(frames):
+        ax, bx = -80.0 + 4 * f, 80.0 - 4 * f
+        if abs(ax - bx) < merge_px:
+            out.append([Detection(x=(ax + bx) / 2, y=0.5, area=400.0, w=24, h=10)])
+        else:
+            out.append([Detection(ax, 0.0, 200.0, 12, 8), Detection(bx, 1.0, 200.0, 12, 8)])
+    return out
+
+
+def test_two_bodies_crossing_keep_their_ids_through_the_merge():
+    tr = Tracker(max_dist=15, max_missed=2, birth_dist=0)
+    frames = _crossing()
+    for f, dets in enumerate(frames):
+        tr.step(f, dets)
+    tracks = {t.id: t for t in tr.all_tracks()}
+    assert set(tracks) == {1, 2}, sorted(tracks)
+    a, b = tracks[1], tracks[2]
+    assert a.hits == len(frames) and b.hits == len(frames)  # nobody missed a frame
+    assert a.points[-1][1] > 60 and b.points[-1][1] < -60  # A still heading right, B left
+    merged = [p for p in a.points if p[3] == 400.0]
+    assert 2 <= len(merged) <= 5  # coasted through the shared blob, carrying its area
+    assert not a.merged and not b.merged
+    # positions during the merge are extrapolated, not the shared centroid
+    assert all(abs(p[1] - 0.0) > 0.5 or abs(p[2] - 0.5) > 0.1 for p in merged[1:])
+
+
+def test_merge_handling_can_be_disabled():
+    tr = Tracker(max_dist=15, max_missed=2, birth_dist=0, merge_ratio=0)
+    for f, dets in enumerate(_crossing()):
+        tr.step(f, dets)
+    assert all(not t.merged for t in tr.all_tracks())
+    assert any(p[3] == 400.0 and t.missed == 0 for t in tr.all_tracks() for p in t.points)
+
+
+def test_a_blob_that_merely_grows_is_not_a_merge():
+    tr = Tracker(max_dist=15, max_missed=2, birth_dist=0)
+    for f in range(10):
+        tr.step(f, [Detection(10.0 + 2 * f, 0.0, 200.0, 12, 8)])
+    tr.step(10, [Detection(30.0, 0.0, 600.0, 30, 20)])  # Stentor stretched, nobody nearby
+    t = tr.live[0]
+    assert not t.merged and t.points[-1][1] == 30.0 and t.points[-1][3] == 600.0
+
+
 def test_tracker_follows_a_constant_velocity_target():
     tr = Tracker(max_dist=10, max_missed=3)
     for f in range(30):
