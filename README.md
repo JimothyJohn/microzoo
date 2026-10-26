@@ -38,6 +38,28 @@ Knobs: `--min-area` is the one you'll turn. `--scale 0.5` for 1080p on the Pi.
 `--birth-dist` / `--max-dist` / `--max-missed` / `--min-life` for the tracker.
 `python track.py -h` for the rest.
 
+## Simulated ecosystem
+
+`synth.py` draws ellipses. `ecosim.py` draws the cast: procedural sprites per species
+(`sprites.py`, drawn from the darkfield references in `references/images.json`) driven by
+behaviours (Paramecium avoidance, Didinium capture, Stentor contraction, rotifer release,
+Lacrymaria neck, convection drift). Every number lives in `species.py`, in µm and seconds.
+
+```sh
+make demo-eco      # ecosim -> track.py -> trackstats.py -> data/eco_fitted.json
+make sprites       # sprite sheets + atlas into docs/media/ (docs/sprites.html animates them)
+uv run python ecosim.py --out data/eco.mp4 --cast paramecium=8,didinium=2,stentor=1,debris=30
+uv run python ecosim.py --dump-params > my.json   # edit, then --params my.json
+uv run python trackstats.py data/eco_tracks.csv --emit-params fitted.json
+```
+
+`ecosim.py` writes `<stem>_truth.csv` (with species and state), `<stem>_events.csv`
+(capture, ingested, contraction, release) and a `<stem>.json` sidecar holding the parameters,
+so a tracked clip carries its own model. `trackstats.py` goes the other way: per-track speed,
+turn rate and straightness in real units, convection removed by debris consensus, and a
+per-species `--params` file when a truth CSV is present. That is the loop that will one day
+run on real footage instead of the cheat sheet.
+
 ## Pi
 
 `pip install --require-hashes -r requirements.txt` then copy `track.py`.
