@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microzoo rig hardware</title>
+<meta name="description" content="The microcosmos tracker rig under $1,000: used compound scope, LED darkfield, global-shutter camera, Z stepper. Bill of materials by gate, optical train, budget against the line, two purchase paths, and what Nick needs to do tomorrow.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f8f8; --bg2:#ffffff; --surface:#ffffff; --line:#d7dee1; --line-hi:#b9c4c9;
+    --text:#14222a; --muted:#5a6b73; --faint:#8a989f; --accent:#0f8d93; --accent-dim:#0b6f74;
+    --green:#1f8a4c; --amber:#b7791f; --red:#c23b3b; --blue:#2b6cb0; --water:#9fd4de;
+    --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#0b1216; --bg2:#0f181d; --surface:#121c22; --line:#213038; --line-hi:#2f4450;
+    --text:#dfe9ec; --muted:#8aa0a8; --faint:#5e727a; --accent:#2fd4d9; --accent-dim:#1aa7ac;
+    --green:#5ad08a; --amber:#e8a04f; --red:#e86a6a; --blue:#6fb0ff; --water:#1d4a57; color-scheme:dark; } }
+  :root[data-theme="dark"]{
+    --bg:#0b1216; --bg2:#0f181d; --surface:#121c22; --line:#213038; --line-hi:#2f4450;
+    --text:#dfe9ec; --muted:#8aa0a8; --faint:#5e727a; --accent:#2fd4d9; --accent-dim:#1aa7ac;
+    --green:#5ad08a; --amber:#e8a04f; --red:#e86a6a; --blue:#6fb0ff; --water:#1d4a57; color-scheme:dark; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.55;font-size:15px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+  header.top{border-bottom:1px solid var(--line);background:var(--bg2);position:sticky;top:0;z-index:5}
+  .top-inner{display:flex;align-items:center;justify-content:space-between;min-height:52px;gap:12px;flex-wrap:wrap;padding:6px 0}
+  .brand{font-weight:700;letter-spacing:.02em}
+  .brand em{color:var(--accent);font-style:normal}
+  nav{display:flex;gap:12px;font-family:var(--mono);font-size:12px;flex-wrap:wrap}
+  nav a{color:var(--muted);text-decoration:none} nav a:hover{color:var(--text)}
+  h1{font-size:clamp(1.7rem,4vw,2.6rem);line-height:1.1;margin:36px 0 8px}
+  h1 em{color:var(--accent);font-style:normal}
+  h2{font-size:1.3rem;margin:44px 0 12px;padding-top:12px;border-top:1px solid var(--line)}
+  h3{font-size:1.02rem;margin:18px 0 6px}
+  p.lead{color:var(--muted);max-width:760px;font-size:1.05rem}
+  p{max-width:760px}
+  code{font-family:var(--mono);font-size:.92em}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+  .grid{display:grid;gap:14px} .g2{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))} .g3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+  .card h3{margin-top:0}
+  .big{font-family:var(--mono);font-size:1.8rem;font-weight:600;line-height:1.1}
+  .big small{font-size:.8rem;color:var(--muted);font-weight:400;display:block;margin-top:4px;font-family:var(--sans)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:500;font-family:var(--mono);font-size:11.5px;letter-spacing:.04em}
+  td.num,th.num{text-align:right;white-space:nowrap;font-family:var(--mono)}
+  td.mono,.mono{font-family:var(--mono)}
+  .muted{color:var(--muted);font-size:12px}
+  .tag{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:1px 7px;border-radius:999px;border:1px solid var(--line-hi);color:var(--muted);white-space:nowrap}
+  .tag.have{color:var(--green);border-color:var(--green)} .tag.buy{color:var(--amber);border-color:var(--amber)} .tag.maybe{color:var(--blue);border-color:var(--blue)} .tag.path{color:var(--accent);border-color:var(--accent)}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+  .tablewrap table{min-width:720px}
+  ul.check{list-style:none}
+  ul.check li{display:grid;grid-template-columns:22px 1fr;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
+  ul.check li .box{width:16px;height:16px;margin-top:4px;border:1.5px solid var(--line-hi);border-radius:3px}
+  ul.check li b{display:block} ul.check li span.meta{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  figure{margin:12px 0} figcaption{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:6px}
+  svg.fig{width:100%;height:auto;display:block;background:var(--bg2);border:1px solid var(--line);border-radius:8px}
+  svg.fig text{font-family:var(--mono)}
+  .bar{display:grid;grid-template-columns:150px 1fr 90px;align-items:center;gap:10px;margin:6px 0;font-size:13px}
+  .bar .track{position:relative;height:18px;background:var(--bg);border:1px solid var(--line);border-radius:4px}
+  .bar .seg{position:absolute;top:0;bottom:0}
+  .bar .line{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--red)}
+  .bar .val{font-family:var(--mono);text-align:right}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--muted);margin:8px 0}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  .gates{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+  .gate{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface)}
+  .gate .eyebrow{font-size:10px} .gate b{display:block;margin:2px 0 4px} .gate .muted{font-size:11.5px}
+  .gate.now{border-color:var(--accent)}
+  details{border:1px solid var(--line);border-radius:8px;padding:10px 14px;background:var(--surface);margin:10px 0}
+  summary{cursor:pointer;font-weight:600}
+  footer{border-top:1px solid var(--line);margin-top:48px;padding:18px 0 40px;color:var(--muted);font-family:var(--mono);font-size:12px}
+  a{color:var(--accent)}
+  @media (max-width:640px){.bar{grid-template-columns:100px 1fr 80px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap top-inner">
+  <div class="brand">micro<em>zoo</em> / hardware</div>
+  <nav><a href="#needed">needed from you</a><a href="#kit">kit</a><a href="#train">optical train</a><a href="#budget">budget</a><a href="#paths">two paths</a><a href="#numbers">numbers</a><a href="#plan">plan</a><a href="#files">files</a></nav>
+</div></header>
+
+<main class="wrap">
+<div class="eyebrow" style="margin-top:32px">Microcosmos tracker · rig · 2026-10-25</div>
+<h1>One used scope, one LED, one global-shutter sensor, <em>one motor.</em></h1>
+<p class="lead">The complete filming rig from the jar to the clip, under $1,000 with the TOMLOV, the Mac Studio and the H2S counted at $0. Every part is tied to the gate that unlocks it. Nothing is bought until its gate is passed.</p>
+
+<div class="grid g3" style="margin-top:22px">
+  <div class="card"><div class="eyebrow">Path B, recommended</div><div class="big">$672<small>full tracking rig through G4, Studio as the capture box, Pi deferred to G5</small></div></div>
+  <div class="card"><div class="eyebrow">Path A</div><div class="big">$898<small>Pi 5 + Pi GS camera first; a $175 Pi and an out-of-stock camera make it dearer today</small></div></div>
+  <div class="card"><div class="eyebrow">Tomorrow</div><div class="big">$0<small>the pond trip and G0 need jars and a baster; G1 needs $33 of slides and pipettes</small></div></div>
+</div>
+
+<h2 id="needed">Needed from you</h2>
+<ul class="check">
+  <li><div class="box"></div><div><b>Tomorrow: the pond trip.</b> Two or three jars, baster, strainer bag. Plant squeezings, surface film, top centimetre of sediment, in that order. Lids loose, label date and site. <span class="meta">SOURCING.md §7 · $0</span></div></li>
+  <li><div class="box"></div><div><b>Pick the path.</b> B (Studio first, USB 3 AR0234, $672 now, Pi at G5) or A (Pi first, $898, GS camera on backorder). The spec recommends B; it is your call, and it is only due at G2. <span class="meta">SOURCING.md §4 · decides $225 today and the order of the roadmap</span></div></li>
+  <li><div class="box"></div><div><b>Order the G1 consumables when the jar glitters.</b> Slides, two packs of #1 coverslips, a dozen depression slides, a bag of pipettes. <span class="meta">bom.csv lines 0.3, 1.3–1.5 · ~$33 · Home Science Tools, Microscope World</span></div></li>
+  <li><div class="box"></div><div><b>Start reading used-scope listings during G0.</b> Complete binocular Olympus CH-2 / CHT or Nikon Alphaphot, 4x present, 1.25 NA Abbe with a filter tray, stage holds position. Use the checklist before paying. <span class="meta">SOURCING.md §3 · $220–300 · buy at G2</span></div></li>
+  <li><div class="box"></div><div><b>Two browser checks the automated pass could not make.</b> eBay sold prices for the scope; StepperOnline's NEMA 11 price ($18 vs Pololu's $40). <span class="meta">SOURCING.md §6 · 5 minutes</span></div></li>
+</ul>
+
+<h2 id="kit">The kit at a glance</h2>
+<p class="lead">Each row is a purchasable item from <code>bom.csv</code>, grouped by gate. Options with quantity zero (trinocular variant, spares, fallbacks) are in the CSV and not shown here.</p>
+<div class="legend"><span><span class="tag have">have</span> owned or printed</span><span><span class="tag maybe">check shelf</span> probably in the kitchen or on the bench</span><span><span class="tag buy">buy</span> new money</span><span><span class="tag path">A</span>/<span class="tag path">B</span> path-specific</span></div>
+<div class="tablewrap"><table>
+<thead><tr><th>Gate</th><th>Item</th><th>Vendor / SKU</th><th class="num">Unit</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td class="mono">G0</td><td>Wide-mouth half-pint glass jars, 12-ct<div class="muted">culture jars; two per site</div></td><td><a href="https://www.walmart.com/search?q=kerr+wide+mouth+half+pint+jars">Walmart (Kerr)</a><div class="muted">Kerr wide-mouth half-pint 12-ct</div></td><td class="num">$14.63</td><td><span class="tag maybe">check shelf</span><div class="muted">snapshot</div></td></tr>
+<tr><td class="mono">G0</td><td>Turkey baster<div class="muted">surface film + sediment sampling</div></td><td><a href="https://www.amazon.com/s?k=chef+craft+turkey+baster">Amazon</a><div class="muted">Chef Craft 11.5 in</div></td><td class="num">$3.50</td><td><span class="tag maybe">check shelf</span><div class="muted">snapshot</div></td></tr>
+<tr><td class="mono">G0</td><td>3 mL plastic transfer pipettes, 50-pk<div class="muted">moving drops to the slide</div></td><td><a href="https://www.walmart.com/search?q=3ml+transfer+pipettes+50">Walmart (BioRx Sponix)</a><div class="muted">3 mL transfer pipette 50-pk</div></td><td class="num">$7.99</td><td><span class="tag buy">buy</span><div class="muted">snapshot</div></td></tr>
+<tr><td class="mono">G0</td><td>Removable round labels 3/4 in<div class="muted">date + site on every jar and slide</div></td><td><a href="https://www.amazon.com/s?k=avery+3%2F4+removable+round+labels">Amazon (Avery)</a><div class="muted">Avery 3/4 in removable round 315-ct</div></td><td class="num">$3.00</td><td><span class="tag maybe">check shelf</span><div class="muted">snapshot</div></td></tr>
+<tr><td class="mono">G0</td><td>Fine mesh: paint strainer bag or nylon stocking<div class="muted">concentrate plankton; no-purchase stand-in for a net</div></td><td>hardware store<div class="muted">1 gal paint strainer bag</div></td><td class="num">$3.00</td><td><span class="tag maybe">check shelf</span><div class="muted">estimate</div></td></tr>
+<tr><td class="mono">G1</td><td>TOMLOV TM3K-3D digital microscope<div class="muted">G1 instrument; Daphnia/copepod/Hydra view</div></td><td><a href="https://www.tomlov.com/">TOMLOV</a><div class="muted">TM3K-3D</div></td><td class="num">$0</td><td><span class="tag have">have</span><div class="muted">have</div></td></tr>
+<tr><td class="mono">G1</td><td>Mac Studio<div class="muted">offline tracking, transcoding, ML</div></td><td>Apple<div class="muted"></div></td><td class="num">$0</td><td><span class="tag have">have</span><div class="muted">have</div></td></tr>
+<tr><td class="mono">G1</td><td>Plain glass slides 25x75 mm, 72-pk<div class="muted">chamber base</div></td><td><a href="https://www.homesciencetools.com/product/microscope-slides-plain-glass-70-pack/">Home Science Tools</a><div class="muted">MS-SLIDP72</div></td><td class="num">$7.95</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G1</td><td>Coverslips 22x22 mm No. 1 (0.13-0.17 mm), 100-pk<div class="muted">chamber lid; also sliced as 150 um shims</div></td><td><a href="https://www.homesciencetools.com/product/microscope-cover-slips-glass-100-pack/">Home Science Tools</a><div class="muted">MS-SLIDCV</div></td><td class="num">$3.95</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G1</td><td>Single-concavity depression slides, 12-pk<div class="muted">1-3 mm well for Daphnia, Stentor, Hydra</div></td><td><a href="https://www.microscopeworld.com/p-3372-single-depression-slides.aspx">Microscope World</a><div class="muted">SDS</div></td><td class="num">$12.95</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G1</td><td>Petroleum jelly 3.75 oz<div class="muted">seal the coverslip edge against evaporation flow</div></td><td><a href="https://www.walmart.com/search?q=vaseline+3.75+oz">Walmart</a><div class="muted">Vaseline 3.75 oz</div></td><td class="num">$6.90</td><td><span class="tag maybe">check shelf</span><div class="muted">snapshot</div></td></tr>
+<tr><td class="mono">G2</td><td>Used Olympus CH-2 / CHT binocular, complete (4/10/40/100x, 1.25 NA Abbe, illuminator)<div class="muted">the microscope; camera goes in one eyepiece tube</div></td><td><a href="https://www.ebay.com/sch/i.html?_nkw=olympus+ch-2+microscope&amp;_sop=15">eBay</a><div class="muted">search: olympus ch-2 microscope</div></td><td class="num">$260.00</td><td><span class="tag buy">buy</span><div class="muted">snapshot</div></td></tr>
+<tr><td class="mono">G2</td><td>0.5x reduction lens C-mount adapter, 23.2 mm eyepiece tube<div class="muted">puts the 5 mm sensor on a 2.5 mm field, parfocal with the other eyepiece</div></td><td><a href="https://amscope.com/products/ru050">AmScope</a><div class="muted">RU050</div></td><td class="num">$55.99</td><td><span class="tag buy">buy</span><div class="muted">snapshot</div></td></tr>
+<tr><td class="mono">G2</td><td>Cree XP-L 1-up 20 mm star, 4000 K, 80 CRI<div class="muted">3 W illuminator replacing the halogen</div></td><td><a href="https://www.ledsupply.com/leds/cree-xlamp-xp-l-high-density-led-star">LEDsupply</a><div class="muted">CREEXPL-740-1</div></td><td class="num">$8.36</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>LUXdrive BuckPuck 3023-D-E-700, wired, 0-5 V dim, 7-32 V in<div class="muted">700 mA constant current with an analog dim pin the Pi can drive</div></td><td><a href="https://www.ledsupply.com/index.php?p=product&amp;id=2781">LEDsupply</a><div class="muted">3023-D-E-700</div></td><td class="num">$19.41</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>3 W star heatsink 1.38 in square with thermal pad<div class="muted">LED sink in the lamp house</div></td><td><a href="https://www.ledsupply.com/accessories/heat-sinks">LEDsupply</a><div class="muted">HS13137</div></td><td class="num">$6.25</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>12 V 1 A DC supply, 5.5x2.1 mm<div class="muted">BuckPuck input (1 A covers one 700 mA XP-L)</div></td><td><a href="https://www.adafruit.com/product/798">Adafruit</a><div class="muted">798</div></td><td class="num">$8.95</td><td><span class="tag maybe">check shelf</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>Printed darkfield patch stop + oblique half-stop + LED carrier<div class="muted">blocks condenser NA below the objective NA; parametrised on tray diameter</div></td><td>cad/<div class="muted"></div></td><td class="num">$0</td><td><span class="tag have">have</span><div class="muted">have</div></td></tr>
+<tr><td class="mono">G2</td><td>Raspberry Pi 5, 8 GB <span class="tag path">A</span><div class="muted">capture, live track.py, clip writer</div></td><td><a href="https://www.pishop.us/product/raspberry-pi-5-8gb/">PiShop.us</a><div class="muted">8GB-9028</div></td><td class="num">$175.00</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>Raspberry Pi 27 W USB-C PSU <span class="tag path">A</span><div class="muted">Pi power with USB headroom for the SSD</div></td><td><a href="https://www.pishop.us/product/raspberry-pi-27w-usb-c-power-supply-black-us/">PiShop.us</a><div class="muted">1795-1</div></td><td class="num">$12.95</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>Raspberry Pi Active Cooler <span class="tag path">A</span><div class="muted">60 fps MJPEG on four cores is a sustained load</div></td><td><a href="https://www.pishop.us/product/raspberry-pi-active-cooler/">PiShop.us</a><div class="muted">374-1</div></td><td class="num">$10.95</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>Raspberry Pi 5 official case <span class="tag path">A</span><div class="muted">bench protection</div></td><td><a href="https://www.pishop.us/product/raspberry-pi-case-for-pi-5-red-white/">PiShop.us</a><div class="muted">1272-1</div></td><td class="num">$10.95</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>Raspberry Pi official microSD A2 64 GB <span class="tag path">A</span><div class="muted">OS + code</div></td><td><a href="https://www.pishop.us/product/raspberry-pi-sd-card-64gb/">PiShop.us</a><div class="muted">274-1</div></td><td class="num">$30.95</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>Raspberry Pi Global Shutter Camera (IMX296, C/CS mount) <span class="tag path">A</span><div class="muted">the sensor; 1456x1088 @ 60 fps documented</div></td><td><a href="https://www.sparkfun.com/raspberry-pi-global-shutter-camera.html">SparkFun</a><div class="muted">SEN-21803</div></td><td class="num">$63.75</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>Pi 5 camera cable 22-pin to 15-pin, 300 mm <span class="tag path">A</span><div class="muted">GS camera ships a 15-pin cable; Pi 5 is 22-pin mini</div></td><td><a href="https://www.adafruit.com/product/5819">Adafruit</a><div class="muted">5819</div></td><td class="num">$3.16</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>Raspberry Pi M.2 HAT+ <span class="tag path">A</span><div class="muted">NVMe for the hour-long MJPEG runs (USB SSD is the alternative)</div></td><td><a href="https://www.pishop.us/product/raspberry-pi-m-2-hat-for-pi-5/">PiShop.us</a><div class="muted">3076</div></td><td class="num">$12.00</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>500 GB NVMe 2230/2242 or USB 3 SSD <span class="tag path">A</span><div class="muted">~35-50 GB per captured hour</div></td><td>any<div class="muted">e.g. Crucial X9 1 TB</div></td><td class="num">$55.00</td><td><span class="tag buy">buy</span><div class="muted">estimate</div></td></tr>
+<tr><td class="mono">G2</td><td>Arducam AR0234 2.3 MP global shutter USB 3 camera, C/CS mount <span class="tag path">B</span><div class="muted">the sensor, straight into the Mac Studio; UVC, no driver</div></td><td><a href="https://www.uctronics.com/arducam-ar0234-usb3-global-shutter-camera.html">UCTRONICS (Arducam US)</a><div class="muted">B0495</div></td><td class="num">$139.99</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G2</td><td>USB 3 A-to-C cable 2 m <span class="tag path">B</span><div class="muted">camera to Studio</div></td><td>any<div class="muted"></div></td><td class="num">$8.00</td><td><span class="tag maybe">check shelf</span><div class="muted">estimate</div></td></tr>
+<tr><td class="mono">G3</td><td>NEMA 11 stepper 1.8 deg, 0.67 A, 5 mm shaft (Pololu/SOYO)<div class="muted">fine-focus drive</div></td><td><a href="https://www.pololu.com/product/1205">Pololu</a><div class="muted">1205</div></td><td class="num">$39.92</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G3</td><td>BigTreeTech TMC2209 V1.3 stepper driver<div class="muted">UART microstepping + stall detect</div></td><td><a href="https://biqu.equipment/products/bigtreetech-tmc2209-stepper-motor-driver-for-3d-printer-board-vs-tmc2208">BIQU</a><div class="muted">TMC2209 V1.3</div></td><td class="num">$9.99</td><td><span class="tag buy">buy</span><div class="muted">snapshot</div></td></tr>
+<tr><td class="mono">G3</td><td>12 V 2-3 A DC supply, 5.5x2.1 mm<div class="muted">stepper motor supply (logic from the Pi/USB)</div></td><td>Newegg / Walmart<div class="muted">generic 12 V 3 A</div></td><td class="num">$14.00</td><td><span class="tag maybe">check shelf</span><div class="muted">snapshot</div></td></tr>
+<tr><td class="mono">G3</td><td>Flexible shaft coupler 5 mm to 5 mm, 25 mm<div class="muted">motor to printed knob adapter</div></td><td><a href="https://www.adafruit.com/product/1175">Adafruit</a><div class="muted">1175</div></td><td class="num">$4.95</td><td><span class="tag buy">buy</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G3</td><td>Pi 40-pin breakout + 10 F/F jumpers<div class="muted">TMC2209 wiring for v2</div></td><td><a href="https://www.adafruit.com/product/266">Adafruit</a><div class="muted">266 (jumpers)</div></td><td class="num">$3.95</td><td><span class="tag maybe">check shelf</span><div class="muted">verified</div></td></tr>
+<tr><td class="mono">G4</td><td>Kapton tape 1 mil, 1/2 in<div class="muted">controlled 60-70 um spacer per layer; two layers = 120-140 um chamber</div></td><td>Amazon / DigiKey<div class="muted">1 mil polyimide tape</div></td><td class="num">$8.00</td><td><span class="tag maybe">check shelf</span><div class="muted">estimate</div></td></tr>
+<tr><td class="mono">G2</td><td>Bambu PLA Matte 1 kg, Charcoal<div class="muted">darkfield stops, LED carrier, focus coupler, Pi case</div></td><td><a href="https://us.store.bambulab.com/products/pla-matte">Bambu Lab US</a><div class="muted">PLA Matte refill</div></td><td class="num">$15.99</td><td><span class="tag maybe">check shelf</span><div class="muted">snapshot</div></td></tr>
+<tr><td class="mono">G2</td><td>Bambu H2S<div class="muted">prints the above</div></td><td>Bambu Lab<div class="muted">H2S</div></td><td class="num">$0</td><td><span class="tag have">have</span><div class="muted">have</div></td></tr>
+</tbody></table></div>
+
+<h2 id="train">Optical train</h2>
+<figure>
+<svg class="fig" viewBox="0 0 1000 420" role="img" aria-label="Side view of the optical train from LED to sensor">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
+  </defs>
+  <line x1="150" y1="390" x2="150" y2="30" stroke="var(--line-hi)" stroke-dasharray="4 6"/>
+  <rect x="110" y="360" width="80" height="22" fill="var(--surface)" stroke="var(--muted)"/>
+  <rect x="135" y="350" width="30" height="10" fill="var(--amber)"/>
+  <text x="210" y="372" font-size="12" fill="var(--text)">Cree XP-L star on heatsink, BuckPuck 700 mA</text>
+  <text x="210" y="387" font-size="11" fill="var(--muted)">replaces the halogen · $34 · dim pin → GPIO later</text>
+  <path d="M150,350 L105,300 L195,300 Z" fill="var(--amber)" fill-opacity=".12"/>
+  <line x1="95" y1="300" x2="125" y2="300" stroke="var(--text)" stroke-width="3"/><line x1="175" y1="300" x2="205" y2="300" stroke="var(--text)" stroke-width="3"/>
+  <text x="210" y="304" font-size="11" fill="var(--muted)">field diaphragm (on the scope)</text>
+  <rect x="100" y="268" width="100" height="6" fill="var(--surface)" stroke="var(--muted)"/>
+  <rect x="131" y="266" width="38" height="10" fill="var(--text)"/>
+  <text x="210" y="277" font-size="12" fill="var(--text)">printed darkfield patch stop in the condenser filter tray</text>
+  <text x="210" y="291" font-size="11" fill="var(--muted)">blocks NA below the objective's (0.10 at 4x, 0.25 at 10x) · cad/ · $0</text>
+  <path d="M110,255 Q150,225 190,255 Z" fill="var(--water)" stroke="var(--muted)"/>
+  <text x="210" y="248" font-size="12" fill="var(--text)">1.25 NA Abbe condenser (comes with the scope)</text>
+  <path d="M105,266 L140,205 L160,205 L195,266 Z" fill="var(--amber)" fill-opacity=".18"/>
+  <path d="M131,266 L148,205 L152,205 L169,266 Z" fill="var(--bg2)"/>
+  <rect x="60" y="200" width="180" height="6" fill="var(--surface)" stroke="var(--muted)"/>
+  <rect x="100" y="196" width="100" height="4" fill="var(--water)"/>
+  <rect x="100" y="192" width="100" height="4" fill="var(--surface)" stroke="var(--muted)"/>
+  <circle cx="150" cy="198" r="2.2" fill="var(--green)"/>
+  <text x="250" y="202" font-size="12" fill="var(--text)">120 µm chamber: slide, coverslip shims, #1 coverslip, petroleum jelly seal</text>
+  <text x="250" y="216" font-size="11" fill="var(--muted)">Paramecium is 40–70 µm thick: two body depths, inside the 10x depth of field</text>
+  <path d="M150,198 L140,170 L160,170 Z" fill="var(--green)" fill-opacity=".35"/>
+  <path d="M138,170 L162,170 L168,130 L132,130 Z" fill="var(--surface)" stroke="var(--text)"/>
+  <text x="210" y="150" font-size="12" fill="var(--text)">4x NA 0.10 (tracking) / 10x NA 0.25 (follow), RMS 160/45</text>
+  <text x="210" y="164" font-size="11" fill="var(--muted)">only scattered light enters: glowing swimmers on black</text>
+  <rect x="140" y="80" width="20" height="50" fill="var(--surface)" stroke="var(--muted)"/>
+  <text x="210" y="108" font-size="12" fill="var(--text)">used Olympus CH-2 class body, binocular head</text>
+  <text x="210" y="122" font-size="11" fill="var(--muted)">$220–300 complete · the single biggest line</text>
+  <path d="M150,80 L110,50 M150,80 L190,50" stroke="var(--muted)" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <rect x="96" y="28" width="28" height="24" rx="3" fill="var(--surface)" stroke="var(--muted)"/>
+  <text x="20" y="20" font-size="11" fill="var(--muted)">10x eyepiece: aiming</text>
+  <rect x="176" y="34" width="28" height="18" fill="var(--surface)" stroke="var(--accent)"/>
+  <rect x="172" y="12" width="36" height="22" rx="3" fill="var(--surface)" stroke="var(--accent)"/>
+  <rect x="184" y="20" width="12" height="8" fill="var(--accent)"/>
+  <text x="222" y="24" font-size="12" fill="var(--text)">23.2 mm eyepiece tube → 0.5x reducer → C-mount global-shutter sensor</text>
+  <text x="222" y="38" font-size="11" fill="var(--muted)">B: AR0234 USB 3 to the Studio ($140) · A: Pi GS IMX296 on a Pi 5 ($375)</text>
+  <text x="222" y="52" font-size="11" fill="var(--muted)">2.5–2.9 mm field at 4x, 1.5–1.7 µm/px; 1.0–1.15 mm at 10x</text>
+  <rect x="20" y="100" width="34" height="34" fill="var(--surface)" stroke="var(--muted)"/>
+  <circle cx="37" cy="117" r="6" fill="none" stroke="var(--text)"/>
+  <path d="M54,117 L75,117" stroke="var(--text)" stroke-width="2"/>
+  <circle cx="86" cy="117" r="11" fill="none" stroke="var(--text)" stroke-width="2"/>
+  <text x="20" y="152" font-size="11" fill="var(--muted)">NEMA 11 + TMC2209 on the</text>
+  <text x="20" y="166" font-size="11" fill="var(--muted)">fine-focus knob (G3, $55)</text>
+  <text x="20" y="180" font-size="11" fill="var(--muted)">30–60 nm/µstep · 2 µm/s</text>
+  <line x1="700" y1="380" x2="700" y2="60" stroke="var(--muted)" marker-end="url(#arr)"/>
+  <text x="710" y="225" font-size="11" fill="var(--muted)">light</text>
+  <rect x="760" y="70" width="210" height="140" fill="#000" stroke="var(--line-hi)"/>
+  <ellipse cx="830" cy="130" rx="22" ry="9" fill="none" stroke="#bfe" stroke-width="1.5" transform="rotate(-25 830 130)"/>
+  <ellipse cx="900" cy="170" rx="16" ry="7" fill="none" stroke="#bfe" stroke-width="1.5" transform="rotate(40 900 170)"/>
+  <circle cx="920" cy="100" r="7" fill="none" stroke="#bfe" stroke-width="1.5"/>
+  <rect x="800" y="100" width="60" height="60" fill="none" stroke="var(--accent)" stroke-dasharray="3 3"/>
+  <text x="760" y="228" font-size="11" fill="var(--muted)">what the sensor sees at 4x: the tracking view,</text>
+  <text x="760" y="242" font-size="11" fill="var(--muted)">follow-window cropped in software, no XY motor</text>
+</svg>
+<figcaption>Side view, not to scale. Light goes up. The patch stop turns the condenser's solid cone into a hollow one that misses the objective; only light scattered by the organism gets in. The camera takes one eyepiece tube; the other stays for aiming.</figcaption>
+</figure>
+
+<h2 id="budget">Budget against the line</h2>
+<p class="lead">Extended prices from <code>bom.csv</code>, 2026-10-25, before tax and shipping. Solid is the buy list, hatched is the "check shelf" items if they all have to be bought. The red line is $1,000.</p>
+<div class="legend"><span><i style="background:var(--accent)"></i>G0–G1</span><span><i style="background:var(--blue)"></i>G2 scope + light</span><span><i style="background:var(--amber)"></i>G2 camera + compute</span><span><i style="background:var(--green)"></i>G3 Z axis</span><span><i style="background:var(--faint)"></i>check-shelf items</span></div>
+<div id="bars"></div>
+<p class="muted" style="margin-top:8px">Scope at the $260 asking midpoint for a complete binocular CH-2. A $400 trinocular adds $140 to every bar; Path A then crosses the line.</p>
+
+<h2 id="paths">The two paths</h2>
+<div class="grid g2">
+  <div class="card"><h3>Path B · Studio first <span class="tag path">recommended</span></h3>
+    <p>Arducam AR0234 USB 3, C/CS mount, into the Mac Studio for G2–G4. UVC, no driver. 1920×1200 at 3 µm: 40% more pixels and 15% finer sampling than the Pi GS camera, which is what species ID at 10x needs. The Studio encodes in real time, so the Pi 5's missing hardware encoder never comes up.</p>
+    <p class="muted">Must prove early: real frame rate at full resolution over USB 3 (bring-up step 4). Fallback mode is 1280×720 at 120 fps. The Pi arrives at G5 for about $310 and the same camera moves to its USB 3 port.</p></div>
+  <div class="card"><h3>Path A · Pi first</h3>
+    <p>Raspberry Pi 5 8 GB and the Pi Global Shutter Camera (IMX296, 1456×1088 at 60 fps, documented). The roadmap as written. <code>libcamera</code> support out of the box, C/CS mount.</p>
+    <p class="muted">Today: the board is $175 (launch MSRP $80) and the camera is out of stock at Adafruit, CanaKit and PiShop, ambiguous at SparkFun. No hardware encoder: hour-long runs go to SSD as MJPEG at 35 GB/h. $225 more than B for the same gates.</p></div>
+</div>
+
+<h2 id="numbers">Numbers</h2>
+<p class="lead">Finite-tube scope, 0.5x relay, so effective magnification is half the objective's. Rayleigh at 550 nm. Motion for a Paramecium at 1 mm/s.</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Sensor</th><th>Objective</th><th class="num">µm/px</th><th class="num">Field mm</th><th class="num">Rayleigh µm</th><th>Nyquist</th><th class="num">DoF µm</th><th class="num">px/frame @60</th><th class="num">Blur @2 ms</th><th class="num">Blur @1 ms</th></tr></thead>
+<tbody>
+<tr><td rowspan="2">AR0234 1920×1200 · 3.0 µm <span class="tag path">B</span></td><td>4x NA 0.10</td><td class="num">1.50</td><td class="num">2.88 × 1.80</td><td class="num">3.4</td><td>yes</td><td class="num">70</td><td class="num">11</td><td class="num">1.3 px</td><td class="num">0.7 px</td></tr>
+<tr><td>10x NA 0.25</td><td class="num">0.60</td><td class="num">1.15 × 0.72</td><td class="num">1.3</td><td>yes</td><td class="num">11</td><td class="num">28</td><td class="num">3.3 px</td><td class="num">1.7 px</td></tr>
+<tr><td rowspan="2">IMX296 1456×1088 · 3.45 µm <span class="tag path">A</span></td><td>4x NA 0.10</td><td class="num">1.73</td><td class="num">2.51 × 1.88</td><td class="num">3.4</td><td>at the line</td><td class="num">72</td><td class="num">9.7</td><td class="num">1.2 px</td><td class="num">0.6 px</td></tr>
+<tr><td>10x NA 0.25</td><td class="num">0.69</td><td class="num">1.00 × 0.75</td><td class="num">1.3</td><td>at the line</td><td class="num">12</td><td class="num">24</td><td class="num">2.9 px</td><td class="num">1.4 px</td></tr>
+</tbody></table></div>
+<div class="grid g3" style="margin-top:14px">
+  <div class="card"><h3>Exposure</h3><p class="muted">2 ms holds blur near 1 px at 4x; the 10x follow view wants 1 ms. The LED light budget is a measurement with a pass mark, not a model: HARDWARE.md §5.</p></div>
+  <div class="card"><h3>Z axis</h3><p class="muted">Fine focus 100–200 µm per turn; 1/16 microstep gives 30–60 nm per step and the 2 µm/s rate limit is 30–60 steps per second. Depth of field at 10x is 11 µm: 180–350 steps wide.</p></div>
+  <div class="card"><h3>Storage</h3><p class="muted">Raw 60 fps is 95–138 MB/s, ring buffer only. MJPEG ~35–50 GB per hour on the Pi path; the Studio encodes H.264 live at ~3.6 GB per hour.</p></div>
+</div>
+
+<h2 id="plan">Plan</h2>
+<div class="gates">
+  <div class="gate now"><div class="eyebrow">G0 · now</div><b>Culture</b><div class="muted">Jar alive 10 days, visible swimmers. Second jar tomorrow. $0.</div></div>
+  <div class="gate"><div class="eyebrow">G1</div><b>Tracker on TOMLOV</b><div class="muted">track.py on real footage: _tracks.mp4, CSV, a follow clip. $33 of slides and pipettes.</div></div>
+  <div class="gate"><div class="eyebrow">G2</div><b>Resolution ceiling</b><div class="muted">Three clips where species can't be told → buy the scope, LED, adapter, camera. $470–550 (B).</div></div>
+  <div class="gate"><div class="eyebrow">G3</div><b>One hour tracked</b><div class="muted">≥20 tracks >5 s unattended → stepper + TMC2209. $55–75.</div></div>
+  <div class="gate"><div class="eyebrow">G4</div><b>Autofocus holds</b><div class="muted">Paramecium at 10x held 60 s, sharpness plot → event detection work. $0.</div></div>
+  <div class="gate"><div class="eyebrow">G5</div><b>Unattended capture</b><div class="muted">48 h run files a predator/prey clip → the Pi ($310, path B), focal sweep, holography.</div></div>
+</div>
+<details style="margin-top:16px"><summary>Steps with your time, cash and calendar (Path B)</summary>
+<div class="tablewrap" style="margin-top:10px"><table>
+<thead><tr><th>#</th><th>Step</th><th>Your time</th><th class="num">Cash</th><th>Calendar</th></tr></thead>
+<tbody>
+<tr><td class="mono">0</td><td>Pond trip, second jar, labels</td><td>1–2 h</td><td class="num">$0</td><td>tomorrow</td></tr>
+<tr><td class="mono">1</td><td>G0 watch; order slides, coverslips, well slides, pipettes</td><td>5 min/day</td><td class="num">$33</td><td>5–10 days</td></tr>
+<tr><td class="mono">2</td><td>G1 TOMLOV clips, track.py, three "can't tell species" clips</td><td>2–3 h</td><td class="num">$0</td><td>1 week</td></tr>
+<tr><td class="mono">3</td><td>G2 buy: used scope, adapter, LED kit, AR0234 USB 3</td><td>2–4 h reading listings</td><td class="num">$470–550</td><td>1–2 weeks</td></tr>
+<tr><td class="mono">4</td><td>G2 bring-up steps 1–6: clean, LED, adapter, 60 fps, stop, light budget</td><td>1 day over a week</td><td class="num">$0</td><td>1 week</td></tr>
+<tr><td class="mono">5</td><td>Live tracking on the Studio feed, one unattended hour</td><td>1 h</td><td class="num">$0</td><td>2–3 days</td></tr>
+<tr><td class="mono">6</td><td>G3 buy: stepper, TMC2209, coupler, 12 V</td><td>15 min</td><td class="num">$55–75</td><td>1 week</td></tr>
+<tr><td class="mono">7</td><td>Print coupler, wire UART, autofocus 60 s hold</td><td>1 day</td><td class="num">$0</td><td>1–2 weeks</td></tr>
+<tr><td class="mono">8</td><td>v3 events, 48 h run, first unattended clip</td><td>1 h + 48 h unattended</td><td class="num">$0</td><td>1 week</td></tr>
+<tr><td class="mono">9</td><td>G5 buy the Pi set, move the camera, MJPEG soak</td><td>1 day</td><td class="num">~$308</td><td>2 weeks</td></tr>
+<tr><td></td><td><b>Through G4</b></td><td><b>~4 days</b></td><td class="num"><b>$582–672</b></td><td><b>7–10 weeks</b></td></tr>
+</tbody></table></div></details>
+
+<h2 id="files">Files</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>Path</th><th>What</th></tr></thead>
+<tbody>
+<tr><td class="mono">hardware/HARDWARE.md</td><td>Rig spec: why each part, optical numbers for both sensors, light budget, capture and storage, Pi pin budget, bring-up checklist, open decisions</td></tr>
+<tr><td class="mono">hardware/bom.csv</td><td>Cart-ready parts list: gate, path, vendor, SKU, URL, price, stock, verification, note</td></tr>
+<tr><td class="mono">hardware/SOURCING.md</td><td>Vendors, the used-scope checklist, the two paths, steps with time/cash/calendar, what is unverified, tomorrow's pond trip</td></tr>
+<tr><td class="mono">cad/</td><td>Printed parts: darkfield stop, oblique half-stop, LED carrier, focus coupler. Empty until G2; measured dimensions in each file header</td></tr>
+</tbody></table></div>
+</main>
+<footer><div class="wrap">Prices and stock read on 2026-10-25; <em>verified</em> means the vendor's page itself, <em>snapshot</em> a search summary. Owned parts counted at $0: TOMLOV TM3K-3D, Mac Studio, Bambu H2S.</div></footer>
+<script>
+(function(){
+  var ceiling=1000, scale=1200;
+  var colors={"G0–G1":"var(--accent)","G2 scope+light":"var(--blue)","G2 camera+compute":"var(--amber)","G3 Z axis":"var(--green)"};
+  var rows=[
+    {label:"Path B now", segs:[["G0–G1",36.79,31.03],["G2 scope+light",350.01,24.94],["G2 camera+compute",139.99,8.00],["G3 Z axis",54.86,17.95],["G4 chamber",0,8]]},
+    {label:"Path A now", segs:[["G0–G1",36.79,31.03],["G2 scope+light",350.01,24.94],["G2 camera+compute",374.71,0],["G3 Z axis",54.86,17.95],["G4 chamber",0,8]]},
+    {label:"Path B + Pi at G5", segs:[["G0–G1",36.79,31.03],["G2 scope+light",350.01,24.94],["G2 camera+compute",447.99,8.00],["G3 Z axis",54.86,17.95],["G4 chamber",0,8]]}
+  ];
+  colors["G4 chamber"]="var(--faint)";
+  var el=document.getElementById('bars');
+  rows.forEach(function(r){
+    var x=0, html='<div class="bar"><div>'+r.label+'</div><div class="track">';
+    var buy=0, maybe=0;
+    r.segs.forEach(function(s){ buy+=s[1]; maybe+=s[2]; });
+    r.segs.forEach(function(s){
+      if(!s[1]) return;
+      var w=s[1]/scale*100; html+='<div class="seg" style="left:'+x+'%;width:'+w+'%;background:'+colors[s[0]]+'" title="'+s[0]+' $'+s[1].toFixed(0)+'"></div>'; x+=w;
+    });
+    var mw=maybe/scale*100;
+    html+='<div class="seg" style="left:'+x+'%;width:'+mw+'%;background:repeating-linear-gradient(45deg,var(--faint) 0 3px,transparent 3px 6px)" title="check-shelf items $'+maybe.toFixed(0)+'"></div>';
+    html+='<div class="line" style="left:'+(ceiling/scale*100)+'%" title="$1,000"></div></div>';
+    html+='<div class="val">$'+Math.round(buy)+'<span class="muted"> +'+Math.round(maybe)+'</span></div></div>';
+    el.insertAdjacentHTML('beforeend',html);
+  });
+})();
+</script>
+</body>
+</html>
