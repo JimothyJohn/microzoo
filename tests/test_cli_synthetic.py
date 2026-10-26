@@ -223,6 +223,7 @@ def test_empty_file_is_a_clean_error(tmp_path):
         ["--follow-size", "8"],
         ["--follow-smooth", "0"],
         ["--max-missed", "-1"],
+        ["--assign", "hungarian"],
     ],
 )
 def test_invalid_flags_are_rejected_before_any_io(tmp_path, flag):

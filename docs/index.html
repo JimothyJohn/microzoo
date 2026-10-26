@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Microzoo</title>
+<meta name="description" content="Automated filming and tracking of pond microorganisms: predator and prey at the scale of a drop of water, tracked in software, only the focus axis motorized.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a field notebook. Scannable strip on top, the two interactive pages as cards, the
+   gates and the tracker evidence open, everything longer folded into <details>.
+   Palette: darkfield. Black water ground, bioluminescent cyan accent, protist green for "ok". */
+:root{
+  --bg:#07151a; --panel:#0d2128; --fg:#dbe9ec; --muted:#8fa7ae; --line:#1d3a42;
+  --accent:#2fd4d9; --accent-ink:#8ff0f3; --glow:#5ff7fb; --warn:#e8a04f; --ok:#5ccf8a;
+  --display:"Sora",system-ui,sans-serif; --body:"Source Sans 3",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#f3f6f6; --panel:#ffffff; --fg:#17262b; --muted:#5a6f76; --line:#d3dde0;
+  --accent:#0b8a8f; --accent-ink:#0a6a6e; --glow:#15c3c9; --warn:#b2651b; --ok:#2e8b57; color-scheme:light } }
+:root[data-theme="light"]{
+  --bg:#f3f6f6; --panel:#ffffff; --fg:#17262b; --muted:#5a6f76; --line:#d3dde0;
+  --accent:#0b8a8f; --accent-ink:#0a6a6e; --glow:#15c3c9; --warn:#b2651b; --ok:#2e8b57; color-scheme:light }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:17px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 60px}
+.wrap{max-width:860px;margin:0 auto;display:grid;gap:22px}
+header{display:grid;gap:8px}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(34px,7vw,56px);line-height:1.02;margin:0;letter-spacing:-.02em;text-wrap:balance}
+h1 em{font-style:normal;color:var(--accent)}
+.lede{color:var(--muted);margin:0;max-width:62ch;font-size:19px}
+nav{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:15px}
+nav a{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid transparent}
+nav a:hover{border-color:var(--accent)}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--panel)}
+.stat b{display:block;font-family:var(--mono);font-size:22px;font-weight:600;color:var(--accent-ink);font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+h2{font-family:var(--display);font-weight:600;font-size:22px;margin:0 0 6px;text-wrap:balance}
+h3{font-family:var(--display);font-weight:600;font-size:16px;margin:0 0 6px}
+p{margin:0 0 10px;max-width:70ch}
+a{color:var(--accent-ink)}
+code,.mono{font-family:var(--mono);font-size:.9em}
+pre{font-family:var(--mono);font-size:.85em;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:12px 14px;overflow-x:auto;margin:0 0 10px;line-height:1.5}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.card{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;color:inherit;text-decoration:none;min-width:0}
+.card:hover{border-color:var(--accent)}
+.card .art{height:150px;position:relative;overflow:hidden;background:#02070a}
+.card .art canvas,.card .art svg{position:absolute;inset:0;width:100%;height:100%}
+.card .txt{padding:12px 14px}
+.card .txt b{display:block;font-family:var(--display);font-size:17px;margin-bottom:3px}
+.card .txt span{color:var(--muted);font-size:14px}
+.card .txt i{display:block;margin-top:8px;font-style:normal;font-family:var(--mono);font-size:12px;color:var(--accent-ink);letter-spacing:.06em;text-transform:uppercase}
+.callout{border-left:3px solid var(--accent);padding:8px 12px;background:var(--panel);border-radius:0 6px 6px 0;max-width:none}
+.callout.warn{border-color:var(--warn)}
+.scroll{overflow-x:auto;min-width:0}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--display);font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:middle}
+.pill.now{border-color:var(--accent);color:var(--accent-ink)}
+.pill.done{border-color:var(--ok);color:var(--ok)}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+figure{margin:0;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+figure video,figure img{display:block;width:100%;height:auto;background:#000}
+figcaption{padding:9px 12px;font-size:14px;color:var(--muted);border-top:1px solid var(--line)}
+figcaption b{color:var(--fg);font-weight:600}
+details{border-top:1px solid var(--line);padding:4px 0}
+details:last-of-type{border-bottom:1px solid var(--line)}
+summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:12px;padding:12px 0;font-family:var(--display);font-weight:600;font-size:19px}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+";font-family:var(--mono);color:var(--accent);width:1em;flex:none}
+details[open] summary::before{content:"–"}
+summary small{font-family:var(--body);font-weight:400;color:var(--muted);font-size:14px;margin-left:auto;text-align:right}
+summary:focus-visible{outline:2px solid var(--glow);outline-offset:4px;border-radius:4px}
+.body{padding:0 0 18px 1.6em;display:grid;gap:12px}
+.body ul,.body ol{margin:0;padding-left:20px;display:grid;gap:4px;max-width:70ch}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;min-width:0}
+.col h4{margin:0 0 8px;font-family:var(--display);font-size:13px;letter-spacing:.05em;text-transform:uppercase}
+.col ul{padding-left:18px;font-size:15px}
+.tag{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:3px;border:1px solid var(--line);color:var(--muted)}
+.tag.me{border-color:var(--accent);color:var(--accent-ink)}.tag.ai{border-color:var(--ok);color:var(--ok)}.tag.out{border-color:var(--warn);color:var(--warn)}
+.phase{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:baseline}
+.phase b{font-family:var(--mono);font-size:14px;color:var(--accent-ink);white-space:nowrap}
+.bom label{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.bom label span.item small{display:block;color:var(--muted);font-size:13px}
+.bom .price{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.bom h4{margin:12px 0 2px;font-family:var(--display);font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.total{display:flex;justify-content:space-between;font-family:var(--mono);font-size:18px;font-weight:600;padding:12px 0 0;color:var(--accent-ink)}
+svg.arch text{font-family:var(--mono);font-size:12px;fill:var(--fg)}
+footer{color:var(--muted);font-size:14px;border-top:1px solid var(--line);padding-top:16px}
+:focus-visible{outline:2px solid var(--glow);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">microzoo · field notebook · October 2026</div>
+  <h1>One drop.<br>A whole <em>ecosystem.</em></h1>
+  <p class="lede">Predator and prey at a fifth of a millimetre, filmed and tracked automatically from a jar of pond water. Low magnification on a global-shutter sensor, every swimmer tracked in software, only the focus axis motorized.</p>
+  <nav>
+    <a href="#gates">Gates</a>
+    <a href="#tracker">Tracker on synthetic swimmers</a>
+    <a href="#cast">The cast</a>
+    <a href="#design">Design</a>
+    <a href="sprites.html">The cast, animated</a>
+    <a href="tank.html">3D tank</a>
+    <a href="rig.html">Darkfield rig geometry</a>
+    <a href="https://github.com/JimothyJohn/microzoo">Code</a>
+  </nav>
+</header>
+
+<div class="strip">
+  <div class="stat"><b>G0</b><span>current gate · culture</span></div>
+  <div class="stat"><b>$0</b><span>spent so far</span></div>
+  <div class="stat"><b>1 motor</b><span>Z focus only</span></div>
+  <div class="stat"><b>52 tests</b><span>tracker v1, synthetic</span></div>
+</div>
+
+<section>
+  <h2>Three things to play with</h2>
+  <div class="cards">
+    <a class="card" href="sprites.html">
+      <div class="art"><img src="media/sprites_darkfield.png" alt="Sprite sheet of the cast under darkfield" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:0 0"></div>
+      <div class="txt"><b>The Cast, Animated</b><span>Procedural sprites of every organism beside the darkfield photographs they copy, and the simulated drop of water the tracker is tested on.</span><i>sprites.py · ecosim.py · open →</i></div>
+    </a>
+    <a class="card" href="tank.html">
+      <div class="art"><canvas id="tankArt" aria-hidden="true"></canvas></div>
+      <div class="txt"><b>Microcosmos Tank</b><span>An orbitable drop of water with the whole cast swimming in it. Toggle the tracker HUD, trigger a Didinium hunt.</span><i>three.js · open →</i></div>
+    </a>
+    <a class="card" href="rig.html">
+      <div class="art">
+        <svg viewBox="0 0 300 150" aria-hidden="true">
+          <rect width="300" height="150" fill="#0b1216"/>
+          <path d="M150 10 L120 95 L180 95 Z" fill="#c9d4d8" opacity=".14"/>
+          <path d="M40 130 L150 92 L260 130" stroke="#2fd4d9" stroke-width="1.2" fill="none" opacity=".8"/>
+          <ellipse cx="150" cy="130" rx="118" ry="7" fill="none" stroke="#2fd4d9" stroke-width="3"/>
+          <ellipse cx="150" cy="95" rx="55" ry="5" fill="#3aa8c8" opacity=".4"/>
+          <rect x="140" y="2" width="20" height="14" fill="#1a262c" stroke="#5fb8c4"/>
+          <ellipse cx="153" cy="94" rx="3" ry="1.4" fill="#5ad08a"/>
+        </svg>
+      </div>
+      <div class="txt"><b>Darkfield Rig Geometry</b><span>Ring light, dish, lens cone. Slide the diameters and see when the lens starts looking straight at an LED and darkfield turns into brightfield.</span><i>three.js · open →</i></div>
+    </a>
+  </div>
+</section>
+
+<section>
+  <h2>The decision in one screen</h2>
+  <p>Following a swimmer with a motorized stage means closing a control loop around a plant that includes the water. Every stage acceleration sloshes the chamber, the organism rides the slosh, and the controller chases its own disturbance on top of mechanical ringing. Doable, but it becomes the whole project.</p>
+  <p>Instead: run low magnification on a global-shutter sensor, detect and track every organism in software, and crop a follow-window around the one you care about. Zero lag, multiple targets at once, and the predator entering frame is free. The stage stays manual. The only servo loop is Z focus, which is slow, low-mass, has no fluid coupling, and uses image sharpness as a clean error signal.</p>
+  <div class="callout">Contrast beats magnification. Pond protists are transparent; darkfield (a $20 condenser stop) makes them glow on black at 4x–10x. Phase contrast is a 10x-and-up feature and costs $500+ more. Skipped for v1.</div>
+</section>
+
+<section id="gates">
+  <h2>Gates <span class="pill">purchases are unlocked by deliverables, never by enthusiasm</span></h2>
+  <p>Nothing gets bought until the gate before it is passed. Each gate is a thing you can show someone. The first two cost nothing.</p>
+  <div class="scroll"><table>
+    <tr><th>Gate</th><th>Deliverable</th><th>Unlocks</th><th>Status</th></tr>
+    <tr><td class="n">G0 · Culture</td><td>A jar of local pond water with one boiled rice or wheat grain, alive for 10 days, visible swimmers.</td><td>Nothing. The precondition for everything.</td><td><span class="pill now">in progress</span><br><small>sample collected 2026-10-25, Bedford TX</small></td></tr>
+    <tr><td class="n">G1 · Tracker on the TOMLOV</td><td>Real organisms under the owned TOMLOV TM3K-3D, backlit, top light off. <code>track.py</code> produces a tracks video with stable IDs, a CSV, and a follow clip worth watching.</td><td>Nothing yet.</td><td><span class="pill">next</span></td></tr>
+    <tr><td class="n">G2 · Resolution ceiling</td><td>Three clips where something clearly happened but the species can't be told.</td><td>Used trinocular compound scope, then Pi 5 + global-shutter camera + 0.5x reducer.</td><td><span class="pill">—</span></td></tr>
+    <tr><td class="n">G3 · One hour tracked</td><td>Unattended 60 fps hour, at least 20 tracks longer than 5 s.</td><td>Z stepper (NEMA 11 + TMC2209).</td><td><span class="pill">—</span></td></tr>
+    <tr><td class="n">G4 · Autofocus holds</td><td>Swimming Paramecium at 10x held 60 s, sharpness-vs-time plot.</td><td>Event detection work.</td><td><span class="pill">—</span></td></tr>
+    <tr><td class="n">G5 · First unattended capture</td><td>A 48 h run files a predator/prey clip nobody watched happen.</td><td>Tier 2 camera, focal-sweep 3D, holography side rig.</td><td><span class="pill">—</span></td></tr>
+  </table></div>
+</section>
+
+<section id="tracker">
+  <h2>Tracker v1 on synthetic swimmers</h2>
+  <p>What the tracker is being tested against before there is a culture to film. <code>synth.py</code> renders seeded swimmers with a ground-truth CSV; <code>track.py</code> runs MOG2 background subtraction, morphology, contours, a constant-velocity Kalman filter per track and greedy nearest-neighbour assignment, then writes the overlay, the CSV and a follow crop. Six swimmers, 640×480, 300 frames at 30 fps.</p>
+  <div class="grid">
+    <figure><video src="media/raw.mp4" controls muted loop playsinline preload="metadata"></video><figcaption><b>Raw synthetic input.</b> All the tracker sees. Bright ellipses on a dark noisy field, standing in for darkfield.</figcaption></figure>
+    <figure><video src="media/tracked.mp4" controls muted loop playsinline preload="metadata"></video><figcaption><b>Tracker overlay.</b> Box, ID and a 30-frame trail per confirmed track. Six swimmers, six IDs, held for the whole clip.</figcaption></figure>
+    <figure><video src="media/follow.mp4" controls muted loop playsinline preload="metadata"></video><figcaption><b>Follow clip, track 1.</b> A 256 px window riding the smoothed track position. An EMA damps the jitter so the organism drifts inside the window instead of being pinned dead centre.</figcaption></figure>
+  </div>
+  <h3 style="margin-top:14px">Same tank, backlit: what the TOMLOV will produce</h3>
+  <div class="grid">
+    <figure><video src="media/raw_bf.mp4" controls muted loop playsinline preload="metadata"></video><figcaption><b>Brightfield input.</b> Dark bodies with a lighter translucent centre on a bright field. Same seed, same paths as the darkfield clip.</figcaption></figure>
+    <figure><video src="media/tracked_bf.mp4" controls muted loop playsinline preload="metadata"></video><figcaption><b>Tracked, no settings changed.</b> MOG2 flags any deviation from the background model, so polarity never reaches the tracker. The overlay reads the first frame's median grey and switches to dark ink.</figcaption></figure>
+    <figure><img src="media/tracked_bf_f150.jpg" alt="Brightfield tracked frame 150: six dark swimmers on a light field with dark labels and trails" width="640" height="480" loading="lazy"><figcaption><b>Frame 150, brightfield.</b> Six of six held, same as darkfield. The end-to-end tests run every scenario in both polarities.</figcaption></figure>
+  </div>
+  <details style="margin-top:14px">
+    <summary>Same moments, raw over tracked <small>contact sheet</small></summary>
+    <div class="body"><figure><img src="media/contact_sheet.jpg" alt="Contact sheet: six time points from the synthetic clip, raw frame above the tracked frame for each" width="1920" height="1920" loading="lazy"><figcaption>Frames 0, 60, 120, 180, 240, 299. Frame 0 has no boxes: MOG2 gets two warm-up frames and a track needs 15 frames of life before it is drawn.</figcaption></figure></div>
+  </details>
+  <details>
+    <summary>The one bug the fixture caught <small>fragment births</small></summary>
+    <div class="body">
+      <div class="grid">
+        <figure><img src="media/mask_f128.png" alt="Left: MOG2 foreground mask at frame 128 with one swimmer split into two fragments. Right: the grey frame." width="640" height="240" loading="lazy"><figcaption><b>Frame 128, mask left, frame right.</b> The swimmer at the bottom centre had been crawling slowly along one line, so MOG2 started absorbing it into the background and the mask broke into two fragments.</figcaption></figure>
+        <figure><img src="media/tracked_f150.jpg" alt="Tracked frame 150 with six labelled swimmers and their trails" width="640" height="480" loading="lazy"><figcaption><b>Why it mattered.</b> The second fragment spawned a new track, which on the next frame sat closer to the blob than the established track's prediction, stole it, and the original died. Fix: an unmatched blob within <code>--birth-dist</code> of a live track is a fragment, never a birth. Regression test keeps it fixed.</figcaption></figure>
+      </div>
+    </div>
+  </details>
+  <details>
+    <summary>What the simulation does and deliberately doesn't <small>a plumbing fixture, not a biological model</small></summary>
+    <div class="body">
+      <p>The point is to exercise detection, assignment, track lifecycle and the output files against known ground truth. Each swimmer is a blob with a heading that random-walks and a speed that stays roughly constant. There is no behaviour in it.</p>
+      <div class="scroll"><table>
+        <tr><th>Quantity</th><th>Value</th><th>Note</th></tr>
+        <tr><td>Background</td><td class="n">18 grey + Gaussian noise σ 6</td><td>Fresh noise every frame. Sets the floor MOG2 has to reject.</td></tr>
+        <tr><td>Swimmer body</td><td class="n">ellipse 6 × 3.3 px, blur σ 0.8</td><td>Long axis along the heading. Darkfield: 200 on 18. Brightfield: 95 rim, 165 core, on 225.</td></tr>
+        <tr><td>Speed</td><td class="n">3 px/frame ± 30 %</td><td>Fixed per swimmer for the clip. 90 px/s at 30 fps.</td></tr>
+        <tr><td>Turning</td><td class="n">heading += N(0, 0.25 rad) per frame</td><td>Produces the wandering trails. No spiral, no run-and-tumble.</td></tr>
+        <tr><td>Walls</td><td class="n">reflect at a 12 px margin</td><td>Nothing leaves the frame, so coverage can be asserted near 100 %.</td></tr>
+        <tr><td>Determinism</td><td class="n">numpy Generator(seed)</td><td>Same seed, byte-identical truth CSV.</td></tr>
+      </table></div>
+      <div class="callout warn">Scale caveat. At the planned 4x setup (1.5 µm/px) these bodies would be ~18 µm long moving at ~135 µm/s. A Paramecium is 10× longer and 7× faster, 11 px per frame at 60 fps. The defaults still cover that, but nothing here proves it. Real footage will.</div>
+      <ul>
+        <li>Missing: occlusion and crossings in walk mode. When swimmers do cross, the greedy assigner swaps IDs. <code>--mode cross</code> forces that case for its own test.</li>
+        <li>Missing: convection drift, focus breathing, illumination flicker. Real-footage problems for v3.</li>
+        <li>Missing: sessile organisms. MOG2 forgets anything that stops moving for ~<code>--history</code> frames.</li>
+        <li>Missing: size and brightness variation, debris, bubbles, the edge of the coverslip.</li>
+      </ul>
+<pre>make demo                     # data/demo*.mp4, darkfield and brightfield, each with _tracks/_follow/csv/json
+uv run python track.py data/&lt;clip&gt;.mp4 --min-area 30</pre>
+    </div>
+  </details>
+</section>
+
+<section id="cast">
+  <h2>The cast</h2>
+  <p>Sizes and speeds are what the tracker has to handle. Stentor and Vorticella contractions are faster than any frame rate here, so those will be a before and an after.</p>
+  <div class="scroll"><table>
+    <tr><th>Organism</th><th>Role</th><th>Size</th><th>Speed</th><th>Tracking note</th></tr>
+    <tr><td>Paramecium</td><td>grazer / prey</td><td class="n">120–300 µm</td><td class="n">~1 mm/s</td><td>Fast, spiral path. The benchmark target.</td></tr>
+    <tr><td>Didinium</td><td>predator of Paramecium</td><td class="n">80–200 µm</td><td class="n">~1–2 mm/s</td><td>Barrel with two cilia belts. The strike takes seconds. Headline footage.</td></tr>
+    <tr><td>Lacrymaria olor</td><td>predator</td><td class="n">100 µm body, neck to 1 mm</td><td class="n">neck whips in ms</td><td>Neck extends 7×. Needs fps, not magnification.</td></tr>
+    <tr><td>Dileptus</td><td>predator</td><td class="n">200–500 µm</td><td class="n">slow</td><td>Trunk sweeps and paralyzes. Easy to track.</td></tr>
+    <tr><td>Rotifers</td><td>filter feeder</td><td class="n">100–500 µm</td><td class="n">variable</td><td>Often anchored; the "wheels" are a strong motion signature.</td></tr>
+    <tr><td>Stentor</td><td>filter feeder, huge</td><td class="n">0.5–2 mm</td><td class="n">sessile; contracts in ~10 ms</td><td>Visible to the naked eye. Fills a 10x frame.</td></tr>
+    <tr><td>Amoeba</td><td>engulfer</td><td class="n">100–500 µm</td><td class="n">µm/s</td><td>Timelapse subject.</td></tr>
+    <tr><td>Hydra</td><td>top predator</td><td class="n">1–10 mm</td><td class="n">tentacles strike</td><td>Eats Daphnia. Needs a deep chamber.</td></tr>
+    <tr><td>Daphnia / copepods</td><td>big prey</td><td class="n">1–3 mm</td><td class="n">jumps 10+ mm/s</td><td>Leaves frame in one jump. TOMLOV territory.</td></tr>
+  </table></div>
+  <details>
+    <summary>Footage to calibrate expectations <small>and why ours will look different</small></summary>
+    <div class="body">
+      <ul>
+        <li><a href="https://www.youtube.com/watch?v=yXiJ__5-tI8">Didinium: The Paramecium Hunter</a>, Journey to the Microcosmos. The target shot, in DIC.</li>
+        <li><a href="https://www.youtube.com/watch?v=KLi5bl-gdeQ">Paramecium: The White Rat of Ciliates</a>, same channel. The benchmark target at 10x–40x.</li>
+        <li><a href="https://www.cellimagelibrary.org/browse/organism/Didinium%20nasutum">Cell Image Library: Didinium nasutum</a>, the capture sequence frame by frame.</li>
+        <li><a href="https://canadiannaturephotographer.com/rberdan_pondlife2017.html">Robert Berdan: Microscopic Life in Ponds</a>, darkfield stills of exactly this cast, plus collecting advice.</li>
+      </ul>
+      <div class="callout">Most of that footage is DIC or phase on $10k+ glass. Darkfield 4x–10x footage looks like glowing silhouettes on black, not translucent glass. That's a style, not a deficiency, and it's the better input for a tracker.</div>
+    </div>
+  </details>
+</section>
+
+<section id="design">
+  <h2>Design</h2>
+
+  <details>
+    <summary>Architecture <small>signal path</small></summary>
+    <div class="body">
+      <div class="scroll"><svg class="arch" viewBox="0 0 700 230" width="700" height="230" style="max-width:100%;height:auto" role="img" aria-label="Signal path: LED and darkfield stop illuminate the chamber; objective and reducer image onto a global shutter camera; Pi 5 runs detection, tracking and autofocus; Z stepper closes the focus loop; clips and tracks go to the Mac Studio.">
+        <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--accent)"/></marker></defs>
+        <g fill="var(--panel)" stroke="var(--line)">
+          <rect x="10" y="20" width="120" height="44" rx="4"/><rect x="10" y="90" width="120" height="44" rx="4"/>
+          <rect x="160" y="55" width="120" height="44" rx="4"/><rect x="310" y="55" width="120" height="44" rx="4"/>
+          <rect x="460" y="20" width="230" height="110" rx="4"/><rect x="310" y="160" width="120" height="44" rx="4"/>
+          <rect x="520" y="160" width="170" height="44" rx="4"/>
+        </g>
+        <text x="70" y="38" text-anchor="middle">LED + darkfield</text><text x="70" y="54" text-anchor="middle">stop (≤2 ms exp)</text>
+        <text x="70" y="108" text-anchor="middle">chamber</text><text x="70" y="124" text-anchor="middle">100–200 µm deep</text>
+        <text x="220" y="73" text-anchor="middle">4x / 10x obj</text><text x="220" y="89" text-anchor="middle">+ 0.5x reducer</text>
+        <text x="370" y="73" text-anchor="middle">global shutter</text><text x="370" y="89" text-anchor="middle">60 fps CSI</text>
+        <text x="575" y="44" text-anchor="middle">Pi 5</text>
+        <text x="575" y="66" text-anchor="middle">bg-subtract → blobs</text>
+        <text x="575" y="84" text-anchor="middle">Kalman tracks → crop</text>
+        <text x="575" y="104" text-anchor="middle">sharpness → Z PID</text>
+        <text x="370" y="178" text-anchor="middle">Z stepper</text><text x="370" y="194" text-anchor="middle">on fine focus</text>
+        <text x="605" y="178" text-anchor="middle">clips + track CSV</text><text x="605" y="194" text-anchor="middle">→ Mac Studio</text>
+        <g stroke="var(--accent)" stroke-width="1.5" fill="none" marker-end="url(#a)">
+          <path d="M130 42 H145 V77 H160"/><path d="M130 112 H145 V77"/><path d="M280 77 H310"/><path d="M430 77 H460"/>
+          <path d="M460 100 H445 V182 H430"/><path d="M370 160 V140 H250 V99"/><path d="M575 130 V182 H520"/>
+        </g>
+      </svg></div>
+      <p><b>The numbers that make this work</b> (AR0234 sensor, 3 µm pixels, 1920 px wide, 0.5x reducer):</p>
+      <ul>
+        <li>4x objective → 1.5 µm/px, field 2.9 × 1.8 mm. Paramecium at 1 mm/s moves 17 µm = 11 px per frame at 60 fps. Trivial to track; a Didinium strike fits in frame.</li>
+        <li>10x objective → 0.6 µm/px, field 1.15 × 0.7 mm. Same swimmer is 28 px/frame. You lose it off the edge in about a second, so this is the follow-crop mode.</li>
+        <li>Motion blur: 1 mm/s × 2 ms exposure = 2 µm, about a pixel at 4x. Exposure stays ≤2 ms, which means a bright LED through the stop, not the stock bulb.</li>
+        <li>Depth of field at 4x is ~50 µm; at 10x ~10 µm. In a 150 µm chamber the autofocus loop does real work at 10x and almost none at 4x.</li>
+      </ul>
+      <div class="callout">Keep the Pi dumb: capture, detect, track, clip, focus. Everything that needs a model or a second look runs on the Mac Studio over the network. That split keeps the realtime loop deterministic.</div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Software plan <small>v1 → v3, then 3D</small></summary>
+    <div class="body">
+      <p><b>v1, Pi only.</b> <code>picamera2</code> at 1920×1200, 60 fps, 2 ms exposure, frames to a ring buffer. MOG2 background subtraction (darkfield makes this nearly binary), contour → centroid + area + aspect, one Kalman filter per track, assignment. Output: full-frame H.264 plus a per-track CSV and a cropped follow clip of any track that lives longer than a couple of seconds. Detect on downscaled frames, cut crops from the full-res buffer.</p>
+      <p><b>v2, autofocus.</b> Variance of Laplacian on the current follow crop as the error signal; Z stepper via TMC2209 UART; PID with a deadband wider than depth of field so it doesn't hunt. Hill-climb on startup, then hold. Rate-limited to ~2 µm/s so the image never visibly breathes.</p>
+      <p><b>v3, meaning.</b> Events from geometry alone: two tracks converge and one disappears is a capture; a sessile blob's area drops 80 % in one frame is a Stentor contraction. Events trigger a 10 s pre-roll clip. Subtract the per-frame median motion of all tracks before calling anything "swimming", because the LED's convection reads as drift. Then a small YOLO fine-tune on our own crops for species labels, offline on the Mac Studio, and an ecology dashboard: who eats whom, encounter rates, speed distributions.</p>
+      <p><b>3D, and why tilt won't do it.</b> Depth of field is 10–50 µm, the chamber is 150 µm, and a microscope image has no perspective, so a tilted view is the same silhouette, blurrier. The routes that work: <b>focal sweep</b> (ramp Z at 10–20 Hz while recording; sharpness per track per frame gives Z; free, uses the motor we already need) and <b>lensless digital holography</b> (bare sensor, point LED, no objective; software refocuses any plane after the fact and gives true 3D tracks of every swimmer at once; ~$60; the reconstruction is a Fresnel propagation). Light-field and stereo rejected.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Sample prep <small>the part that decides everything</small></summary>
+    <div class="body">
+      <ol>
+        <li><b>Collect</b> from still water with plant matter: squeeze pond weed over a jar, scrape the underside of lily pads, take the surface film and a little sediment. Bring a second jar of plain pond water for dilution.</li>
+        <li><b>Enrich</b> at home: two-thirds full, lid loose, one boiled rice or wheat grain, windowsill. Bacteria bloom days 1–3 (cloudy, sulfur smell), Paramecium days 5–10 (a glittering cloud under side light), predators days 10–20. Milky white means overfed: pour half, top up with pond water.</li>
+        <li><b>Concentrate</b> for filming: let the jar sit, then pipette from the top (aerobes) or the bottom film (grazers).</li>
+        <li><b>Chamber</b>: well slide for 1 mm organisms. For the 100–300 µm ciliates, two strips of 100 µm spacer tape on a plain slide, coverslip bridged over them, edges sealed with a vaseline bead. Quasi-2D, no squash, no evaporation for an hour.</li>
+        <li><b>Light</b>: LED only. Halogen cooks samples and the heat convects, which looks like current to the tracker.</li>
+        <li><b>Slowing agents</b> (methylcellulose, Protoslo): skipped. They change behaviour and make every clip look like slow motion.</li>
+      </ol>
+      <div class="callout warn">The chamber is the schedule risk, not the code. Expect a few evenings of dead Stentors and evaporated wells before there is a recipe that keeps a 1 mm organism alive in plane for an hour.</div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Hardware <small>owned, Tier 1, Tier 2</small></summary>
+    <div class="body bom" id="bom">
+      <p>Owned: TOMLOV TM3K-3D digital scope (reflected and backlit, ~10–20 µm resolution floor, HDMI/USB out; fine for Daphnia, copepods and rotifers, cannot resolve ciliate anatomy), Bambu H2S, Mac Studio. Everything below waits on its gate. Prices are October 2026 US street; untick what you have and the total updates.</p>
+      <h4>Optics · G2</h4>
+      <label><input type="checkbox" data-p="375" checked><span class="item">Used trinocular compound scope (Olympus CH-2/CH30, Nikon Alphaphot)<small>Needs 4x and 10x, a 23.2 mm phototube, an Abbe condenser with a filter tray.</small></span><span class="price">$300–450</span></label>
+      <label><input type="checkbox" data-p="20" checked><span class="item">Darkfield stops, 3D-printed to the condenser tray<small>Stop diameter tunes per objective. Oblique illumination is the fallback if 10x darkfield is too dim.</small></span><span class="price">$0–20</span></label>
+      <label><input type="checkbox" data-p="55" checked><span class="item">23.2 mm → C-mount adapter with 0.5x reducer<small>Without the reducer a small sensor sees a postage stamp of the eyepiece field.</small></span><span class="price">$40–75</span></label>
+      <label><input type="checkbox" data-p="35" checked><span class="item">3–5 W LED + constant-current driver, PWM from the Pi</span><span class="price">$25–40</span></label>
+      <h4>Capture and compute · G2</h4>
+      <label><input type="checkbox" data-p="110" checked><span class="item">Raspberry Pi 5 8 GB kit</span><span class="price">$105–120</span></label>
+      <label><input type="checkbox" data-p="100" checked><span class="item">Arducam AR0234 2.3 MP global shutter, CSI<small>Alternative: official Pi Global Shutter Camera, IMX296 1.6 MP, ~$50.</small></span><span class="price">$50–110</span></label>
+      <label><input type="checkbox" data-p="15" checked><span class="item">Printed cell holding the sensor board on the C-mount thread</span><span class="price">$0–15</span></label>
+      <h4>Focus axis · G3</h4>
+      <label><input type="checkbox" data-p="40" checked><span class="item">NEMA 11 stepper, TMC2209, printed coupler to the fine-focus knob<small>Fine focus is ~0.2 mm/rev; 1/16 microstepping gives ~60 nm steps, far below depth of field.</small></span><span class="price">$30–45</span></label>
+      <h4>Sample</h4>
+      <label><input type="checkbox" data-p="30" checked><span class="item">Well slides, 100 and 200 µm spacer tape, coverslips, vaseline, pipettes</span><span class="price">$25–35</span></label>
+      <div class="total"><span>Tier 1 total (midpoint)</span><span id="tot">$780</span></div>
+      <h4>Tier 2 · G5, only if cropping bites</h4>
+      <label><input type="checkbox" data-p="450"><span class="item">5–12 MP USB3 global-shutter machine-vision camera into the Mac Studio<small>Pi-class CSI sensors cap near 2 MP. Buy when a predator is a 20 px blob in the follow crop.</small></span><span class="price">$300–600</span></label>
+    </div>
+  </details>
+
+  <details>
+    <summary>Who does what <small>automate / you / farm out</small></summary>
+    <div class="body">
+      <div class="grid3">
+        <div class="col"><h4><span class="tag ai">Claude / automate</span></h4><ul>
+          <li>Capture, tracking and crop pipeline</li><li>Autofocus PID and stepper driver</li><li>Auto-clip rules</li><li>Track CSV → ecology stats and plots</li><li>Parametrized darkfield stop STLs</li><li>YOLO fine-tune once there are 500 labeled crops</li>
+        </ul></div>
+        <div class="col"><h4><span class="tag me">Nick</span></h4><ul>
+          <li>Scope selection and the eBay gamble</li><li>CAD for the focus coupler and camera cell; H2S prints</li><li>LED swap and driver wiring</li><li>The chamber recipe, which nobody can do remotely</li><li>Collecting trips and culture jars</li><li>Threshold tuning on the first real frames; the edit</li>
+        </ul></div>
+        <div class="col"><h4><span class="tag out">Farm out</span></h4><ul>
+          <li>Labeling the first few hundred crops</li><li>Species ID: iNaturalist and the Journey to the Microcosmos community will ID a clip for free</li><li>Nothing mechanical</li>
+        </ul></div>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Risks and open questions</summary>
+    <div class="body"><ul>
+      <li><b>Used-scope lottery.</b> Fungus in the optics, a sloppy fine focus, a phototube that isn't parfocal. Buy from a seller who shows a through-the-eyepiece photo; budget one return.</li>
+      <li><b>Darkfield at 10x needs a tighter stop</b> and much more light. If it's dim, oblique illumination is the cheap fallback and looks almost like DIC.</li>
+      <li><b>Convection</b> from the LED reads as drift in every track. Median-motion subtraction before any behaviour call.</li>
+      <li><b>MOG2 forgets slow swimmers.</b> A resting Paramecium or a sessile rotifer vanishes from detection after ~<code>--history</code> frames. Fine for G1; v3 decides between a static-blob detector and a long-history second subtractor.</li>
+      <li><b>ID swaps on crossings.</b> Greedy assignment is the known weakness; Hungarian assignment is a ten-line change if scipy becomes acceptable on the Pi.</li>
+      <li><b>Pi 5 throughput</b> past 100 fps: crop at the sensor (ROI mode), not a faster computer.</li>
+      <li><b>Open:</b> upright vs inverted. Inverted scopes film a petri dish with a real ecosystem in it; they're $3k+ new and rare used. v1 is upright.</li>
+    </ul></div>
+  </details>
+
+  <details>
+    <summary>End game <small>a camera trap, not a camera</small></summary>
+    <div class="body">
+      <p>The rig runs unattended on a culture jar for days, the event detector tags captures, contractions and chases, and you come back to a folder of pre-rolled 10 s clips with a track overlay. The narrative work is choosing and cutting. A week of unattended running on a healthy culture should yield more predator-prey events than a month of hand-hunting.</p>
+      <p>The one place an XY stage comes back is event mode: when a trigger fires on a target near the frame edge, a single slow open-loop stage nudge re-centres it, then the stage stops. The slosh settles before the event finishes. v3, not before.</p>
+      <div class="callout">Path: darkfield tracker first, focal-sweep 3D second (free), holographic rig as a side experiment once the first clips are in the can. All three share the Pi, the LED driver and the chamber work.</div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Rejected alternatives <small>do not relitigate without new evidence</small></summary>
+    <div class="body"><ul>
+      <li><b>Motorized XY tracking stage.</b> Chases its own slosh. Digital follow-crop instead.</li>
+      <li><b>Phase contrast.</b> $500+ and 10x-and-up. Darkfield stop instead.</li>
+      <li><b>PlanktoScope.</b> A flow-through census imager; nothing hunts anything. Possibly a v4 species-count layer.</li>
+      <li><b>OpenFlexure v7.</b> The open motorized-stage alternative; ~0.8 mm field in the low-cost build.</li>
+      <li><b>Tilt/roll for 3D, light-field, stereo.</b> No depth at these scales, or not hobby parts, or hopeless for ciliates.</li>
+    </ul></div>
+  </details>
+
+  <details>
+    <summary>Sources</summary>
+    <div class="body"><ul>
+      <li><a href="https://www.youtube.com/@journeytomicro">Journey to the Microcosmos</a>, the production bar.</li>
+      <li><a href="https://www.cellimagelibrary.org/browse/organism/Didinium%20nasutum">Cell Image Library, Didinium nasutum</a></li>
+      <li><a href="https://micro.magnet.fsu.edu/moviegallery/pondscum/protozoa/didinium/index.html">FSU Molecular Expressions pond scum movies</a>, phase contrast on cheap glass.</li>
+      <li><a href="https://canadiannaturephotographer.com/rberdan_pondlife2017.html">Robert Berdan, Microscopic Life in Ponds and Rainwater</a></li>
+      <li>Stanford Prakash lab Gravity Machine and Squid, the closed-loop tracking references.</li>
+      <li><a href="https://openflexure.org/projects/microscope/build">OpenFlexure Microscope v7</a></li>
+      <li>TrackMate (Fiji), the offline tracking reference and output style.</li>
+      <li><a href="https://thepihut.com/products/arducam-pivariety-ar0234-full-hd-colour-global-shutter-camera-for-raspberry-pi">Arducam AR0234 global shutter</a></li>
+    </ul></div>
+  </details>
+</section>
+
+<footer>
+  <p>Code, tests and the project brief: <a href="https://github.com/JimothyJohn/microzoo">github.com/JimothyJohn/microzoo</a>. Built with Claude; the chamber recipe and the pond are Nick's.</p>
+</footer>
+</div>
+
+<script>
+(function(){
+  // BOM total, remembered per browser.
+  var boxes=document.querySelectorAll('#bom input[type=checkbox]'),tot=document.getElementById('tot');
+  function recalc(){var s=0;boxes.forEach(function(b){if(b.checked)s+=+b.dataset.p;});tot.textContent='$'+s.toLocaleString('en-US');
+    try{localStorage.setItem('bom',JSON.stringify([].map.call(boxes,function(b){return b.checked;})));}catch(e){}}
+  try{var saved=JSON.parse(localStorage.getItem('bom')||'null');if(saved&&saved.length===boxes.length)boxes.forEach(function(b,i){b.checked=saved[i];});}catch(e){}
+  boxes.forEach(function(b){b.addEventListener('change',recalc);});recalc();
+
+  // Card preview: a few 2D swimmers so the tank card hints at what it links to. No three.js here.
+  var c=document.getElementById('tankArt');if(!c||!c.getContext)return;var ctx=c.getContext('2d');
+  var W,H,S=[];function size(){var r=c.getBoundingClientRect();W=c.width=Math.max(1,r.width*devicePixelRatio);H=c.height=Math.max(1,r.height*devicePixelRatio);}
+  size();addEventListener('resize',size);
+  for(var i=0;i<14;i++)S.push({x:Math.random(),y:Math.random(),a:Math.random()*6.28,v:(0.0006+Math.random()*0.0008),c:i<2?'#f2a74b':'#5ad08a'});
+  var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function draw(){ctx.fillStyle='#02070a';ctx.fillRect(0,0,W,H);
+    S.forEach(function(s){if(!reduced){s.a+=(Math.random()-0.5)*0.3;s.x+=Math.cos(s.a)*s.v;s.y+=Math.sin(s.a)*s.v*1.6;if(s.x<0||s.x>1)s.a=Math.PI-s.a;if(s.y<0||s.y>1)s.a=-s.a;}
+      ctx.save();ctx.translate(s.x*W,s.y*H);ctx.rotate(s.a);ctx.fillStyle=s.c;ctx.shadowColor=s.c;ctx.shadowBlur=6*devicePixelRatio;
+      ctx.beginPath();ctx.ellipse(0,0,7*devicePixelRatio,3*devicePixelRatio,0,0,6.28);ctx.fill();ctx.restore();});
+    if(!reduced)requestAnimationFrame(draw);}
+  draw();
+})();
+</script>
+</body>
+</html>

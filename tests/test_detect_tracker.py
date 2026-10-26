@@ -57,6 +57,80 @@ def _d(x, y):
     return Detection(x=x, y=y, area=50.0, w=8, h=8)
 
 
+def test_tracker_rejects_unknown_assigner_and_accepts_both_known_ones():
+    with pytest.raises(ValueError, match="assign"):
+        Tracker(max_dist=10, max_missed=3, assign="hungarian")
+    for name in ("auction", "greedy"):
+        tr = Tracker(max_dist=10, max_missed=3, assign=name)
+        for f in range(5):
+            tr.step(f, [_d(10 + 2 * f, 20)])
+        assert len(tr.all_tracks()) == 1
+
+
+def test_tracker_keeps_both_ids_when_a_fragment_tempts_the_neighbour():
+    # Two tracks 6 px apart; a frame where A's detection is 2 px nearer to B than B's own
+    # (B's blob split). Greedy would hand B the wrong blob and strand A for a frame.
+    tr = Tracker(max_dist=10, max_missed=3, birth_dist=0, assign="auction")
+    for f in range(10):
+        tr.step(f, [_d(0.0, 0.0), _d(6.0, 0.0)])
+    tr.step(10, [_d(2.5, 0.0), _d(7.0, 0.0)])
+    ids = sorted(t.id for t in tr.live)
+    assert ids == [1, 2]
+    by_id = {t.id: t for t in tr.live}
+    assert by_id[1].points[-1][1] == 2.5 and by_id[2].points[-1][1] == 7.0
+    assert all(t.missed == 0 for t in tr.live)
+
+
+def test_tracker_keeps_its_id_through_a_reversal():
+    # 6 px/frame right for 20 frames, then an avoiding reaction: 4 px/frame back.
+    # The constant-velocity prediction overshoots by 10 px a frame; gating on the last
+    # measured position too keeps the detection within reach (max_dist 15).
+    path = [(10.0 + 6 * f, 20.0) for f in range(20)]
+    path += [(path[-1][0] - 4 * (k + 1), 20.0) for k in range(20)]
+    tr = Tracker(max_dist=15, max_missed=2)
+    for f, (x, y) in enumerate(path):
+        tr.step(f, [_d(x, y)])
+    assert len(tr.all_tracks()) == 1 and tr.all_tracks()[0].hits == 40
+    v1 = Tracker(max_dist=15, max_missed=2, anchor_last=False)
+    for f, (x, y) in enumerate(path):
+        v1.step(f, [_d(x, y)])
+    assert len(v1.all_tracks()) > 1  # the v1 behaviour: a new id after the turn
+
+
+def test_debris_track_cannot_steal_a_passing_body():
+    # A 30 px² speck sits still; a 1500 px² body sweeps past within max_dist while its own
+    # track is momentarily unmatched. With the area gate the speck's track stays a speck.
+    speck = Detection(x=50.0, y=50.0, area=30.0, w=6, h=6)
+    tr = Tracker(max_dist=40, max_missed=3, birth_dist=0)
+    for f in range(10):
+        tr.step(f, [speck])
+    body = Detection(x=70.0, y=55.0, area=1500.0, w=60, h=30)
+    tr.step(10, [body])  # the speck vanished this frame; the body is 21 px away
+    ids = {t.id: t for t in tr.live}
+    assert ids[1].points[-1][3] == 30.0 and ids[1].missed == 1
+    assert any(t.points[-1][3] == 1500.0 and t.id != 1 for t in tr.live)
+    off = Tracker(max_dist=40, max_missed=3, birth_dist=0, area_ratio=0)
+    for f in range(10):
+        off.step(f, [speck])
+    off.step(10, [body])
+    assert off.live[0].id == 1 and off.live[0].points[-1][3] == 1500.0  # without the gate
+
+
+def test_fragment_scale_suppresses_births_within_a_big_blob():
+    big = Detection(x=100.0, y=100.0, area=1500.0, w=60, h=30)
+    tr = Tracker(max_dist=40, max_missed=3, birth_dist=5, fragment_scale=0.6)
+    for f in range(5):
+        tr.step(f, [big])
+    # the mask splits: the body's main part plus a chunk 28 px off-centre (> birth_dist)
+    tr.step(5, [big, Detection(x=128.0, y=100.0, area=300.0, w=20, h=20)])
+    assert len(tr.live) == 1
+    loose = Tracker(max_dist=40, max_missed=3, birth_dist=5, fragment_scale=0.0)
+    for f in range(5):
+        loose.step(f, [big])
+    loose.step(5, [big, Detection(x=128.0, y=100.0, area=300.0, w=20, h=20)])
+    assert len(loose.live) == 2
+
+
 def test_tracker_follows_a_constant_velocity_target():
     tr = Tracker(max_dist=10, max_missed=3)
     for f in range(30):

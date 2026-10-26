@@ -1,0 +1,390 @@
+{
+ "generated": "2026-10-25",
+ "source": "Wikimedia Commons API (commons.wikimedia.org/w/api.php); licenses as reported by extmetadata",
+ "items": [
+  {
+   "title": "Paramecium & Litonotus - 160x - Dunkelfeld (8491593271).jpg",
+   "species": "paramecium",
+   "lighting": "darkfield",
+   "what_to_look_for": "Thin bright pellicle rim, dim speckled interior, bright food vacuoles, darker macronucleus, fuzzy cilia halo. Litonotus (the slim one) shows the same rim-and-speckle look.",
+   "page": "https://commons.wikimedia.org/wiki/File:Paramecium_%26_Litonotus_-_160x_-_Dunkelfeld_(8491593271).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/2/21/Paramecium_%26_Litonotus_-_160x_-_Dunkelfeld_%288491593271%29.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Paramecium_%26_Litonotus_-_160x_-_Dunkelfeld_%288491593271%29.jpg/960px-Paramecium_%26_Litonotus_-_160x_-_Dunkelfeld_%288491593271%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    2298,
+    2358
+   ],
+   "license": "CC BY 2.0",
+   "artist": "<a rel=\"nofollow\" class=\"external text\" href=\"https://www.flickr.com/people/5992"
+  },
+  {
+   "title": "Paramecium (8423525940).jpg",
+   "species": "paramecium",
+   "lighting": "darkfield",
+   "what_to_look_for": "Whole cell small in frame among debris: a bright outline with granular fill is what a 4x tracking view sees; debris specks are as bright as the rim.",
+   "page": "https://commons.wikimedia.org/wiki/File:Paramecium_(8423525940).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/1/17/Paramecium_%288423525940%29.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Paramecium_%288423525940%29.jpg/960px-Paramecium_%288423525940%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    1074,
+    1044
+   ],
+   "license": "CC BY 2.0",
+   "artist": "<a rel=\"nofollow\" class=\"external text\" href=\"https://www.flickr.com/people/5992"
+  },
+  {
+   "title": "Paramecium & Smoke (8496898177).jpg",
+   "species": "paramecium",
+   "lighting": "darkfield",
+   "what_to_look_for": "Bright rim, translucent interior, out-of-focus organic 'smoke' around it. Shows how little interior detail survives at low magnification.",
+   "page": "https://commons.wikimedia.org/wiki/File:Paramecium_%26_Smoke_(8496898177).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Paramecium_%26_Smoke_%288496898177%29.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/Paramecium_%26_Smoke_%288496898177%29.jpg/960px-Paramecium_%26_Smoke_%288496898177%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    2632,
+    2912
+   ],
+   "license": "CC BY 2.0",
+   "artist": "<a rel=\"nofollow\" class=\"external text\" href=\"https://www.flickr.com/people/5992"
+  },
+  {
+   "title": "Paramecium caudatum (250 20) Cultured.jpg",
+   "species": "paramecium",
+   "lighting": "brightfield",
+   "what_to_look_for": "Backlit: dark grey granular body, darker macronucleus, pale round vacuoles, bright halo at the edge. The TOMLOV polarity.",
+   "page": "https://commons.wikimedia.org/wiki/File:Paramecium_caudatum_(250_20)_Cultured.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/4/40/Paramecium_caudatum_%28250_20%29_Cultured.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Paramecium_caudatum_%28250_20%29_Cultured.jpg/960px-Paramecium_caudatum_%28250_20%29_Cultured.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    3750,
+    2400
+   ],
+   "license": "CC BY-SA 3.0",
+   "artist": "<a href=\"https://cs.wikipedia.org/wiki/Josef_Reischig\" class=\"extiw\" title=\"cs:J"
+  },
+  {
+   "title": "Didinium nasutum consuming a paramecium.jpg",
+   "species": "didinium",
+   "lighting": "drawing",
+   "what_to_look_for": "Public-domain plate: the Paramecium folds crosswise at the snout as it is swallowed; two ciliary girdles on the barrel. The 'capture' event geometry.",
+   "page": "https://commons.wikimedia.org/wiki/File:Didinium_nasutum_consuming_a_paramecium.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/1/15/Didinium_nasutum_consuming_a_paramecium.jpg",
+   "thumb": "https://upload.wikimedia.org/wikipedia/commons/1/15/Didinium_nasutum_consuming_a_paramecium.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+   "mime": "image/jpeg",
+   "size": [
+    929,
+    414
+   ],
+   "license": "Public domain",
+   "artist": "S. O. Mast"
+  },
+  {
+   "title": "Didinium nasutum 3D-model.jpg",
+   "species": "didinium",
+   "lighting": "model",
+   "what_to_look_for": "Barrel with two belts and a proboscis cone; proportions for the sprite.",
+   "page": "https://commons.wikimedia.org/wiki/File:Didinium_nasutum_3D-model.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/5/5d/Didinium_nasutum_3D-model.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/Didinium_nasutum_3D-model.jpg/960px-Didinium_nasutum_3D-model.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    2048,
+    2048
+   ],
+   "license": "CC BY-SA 4.0",
+   "artist": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Dezarubin&action=edi"
+  },
+  {
+   "title": "Stentor coeruleus extended.jpg",
+   "species": "stentor",
+   "lighting": "brightfield",
+   "what_to_look_for": "Trumpet anchored by a narrow foot, wide membranellar band at the bell.",
+   "page": "https://commons.wikimedia.org/wiki/File:Stentor_coeruleus_extended.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Stentor_coeruleus_extended.jpg",
+   "thumb": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Stentor_coeruleus_extended.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+   "mime": "image/jpeg",
+   "size": [
+    800,
+    600
+   ],
+   "license": "CC BY-SA 3.0",
+   "artist": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Flupke59&action=edit"
+  },
+  {
+   "title": "Инфузория Stentor coeruleus, темное поле.webm",
+   "species": "stentor",
+   "lighting": "darkfield",
+   "what_to_look_for": "Darkfield video (60 s): trumpet among debris, bell band bright, body translucent; watch for contractions.",
+   "page": "https://commons.wikimedia.org/wiki/File:%D0%98%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D1%8F_Stentor_coeruleus,_%D1%82%D0%B5%D0%BC%D0%BD%D0%BE%D0%B5_%D0%BF%D0%BE%D0%BB%D0%B5.webm",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/9/97/%D0%98%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D1%8F_Stentor_coeruleus%2C_%D1%82%D0%B5%D0%BC%D0%BD%D0%BE%D0%B5_%D0%BF%D0%BE%D0%BB%D0%B5.webm",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/%D0%98%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D1%8F_Stentor_coeruleus%2C_%D1%82%D0%B5%D0%BC%D0%BD%D0%BE%D0%B5_%D0%BF%D0%BE%D0%BB%D0%B5.webm/960px--%D0%98%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D1%8F_Stentor_coeruleus%2C_%D1%82%D0%B5%D0%BC%D0%BD%D0%BE%D0%B5_%D0%BF%D0%BE%D0%BB%D0%B5.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+   "mime": "video/webm",
+   "size": [
+    1920,
+    1080
+   ],
+   "license": "CC BY-SA 4.0",
+   "artist": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Andrei_Savitsky&acti"
+  },
+  {
+   "title": "Rotifera - 160x - Dunkelfeld - Formalin (8492706926).jpg",
+   "species": "rotifer",
+   "lighting": "darkfield",
+   "what_to_look_for": "Bdelloid with foot spine and internal granular mass; rim is faint, interior lumpy. Corona not spinning (formalin).",
+   "page": "https://commons.wikimedia.org/wiki/File:Rotifera_-_160x_-_Dunkelfeld_-_Formalin_(8492706926).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/f/fa/Rotifera_-_160x_-_Dunkelfeld_-_Formalin_%288492706926%29.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/Rotifera_-_160x_-_Dunkelfeld_-_Formalin_%288492706926%29.jpg/960px-Rotifera_-_160x_-_Dunkelfeld_-_Formalin_%288492706926%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    1578,
+    1800
+   ],
+   "license": "CC BY 2.0",
+   "artist": "<a rel=\"nofollow\" class=\"external text\" href=\"https://www.flickr.com/people/5992"
+  },
+  {
+   "title": "Rotifera (Genusː Philodina) - 40X view.jpg",
+   "species": "rotifer",
+   "lighting": "brightfield",
+   "what_to_look_for": "Elongated spindle, corona at the head, foot toes; telescoping segments visible.",
+   "page": "https://commons.wikimedia.org/wiki/File:Rotifera_(Genus%CB%90_Philodina)_-_40X_view.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/b/b4/Rotifera_%28Genus%CB%90_Philodina%29_-_40X_view.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Rotifera_%28Genus%CB%90_Philodina%29_-_40X_view.jpg/960px-Rotifera_%28Genus%CB%90_Philodina%29_-_40X_view.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    1827,
+    1175
+   ],
+   "license": "CC BY-SA 4.0",
+   "artist": "<a href=\"//commons.wikimedia.org/wiki/User:Juan_Carlos_Fonseca_Mata\" title=\"User"
+  },
+  {
+   "title": "Rotifera (Genus Philodina) - movement.webm",
+   "species": "rotifer",
+   "lighting": "brightfield",
+   "what_to_look_for": "Video: inchworm crawl and corona beat, the 'wheels' motion signature.",
+   "page": "https://commons.wikimedia.org/wiki/File:Rotifera_(Genus_Philodina)_-_movement.webm",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/e/ed/Rotifera_%28Genus_Philodina%29_-_movement.webm",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ed/Rotifera_%28Genus_Philodina%29_-_movement.webm/960px--Rotifera_%28Genus_Philodina%29_-_movement.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+   "mime": "video/webm",
+   "size": [
+    1280,
+    720
+   ],
+   "license": "CC BY-SA 4.0",
+   "artist": "<a href=\"//commons.wikimedia.org/wiki/User:Juan_Carlos_Fonseca_Mata\" title=\"User"
+  },
+  {
+   "title": "Lacrymaria olor montage-dark.jpg",
+   "species": "lacrymaria",
+   "lighting": "brightfield",
+   "what_to_look_for": "Montage: teardrop body with neck retracted, half out, fully whipped out. Neck is a thin line with a bright head.",
+   "page": "https://commons.wikimedia.org/wiki/File:Lacrymaria_olor_montage-dark.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/7/7b/Lacrymaria_olor_montage-dark.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Lacrymaria_olor_montage-dark.jpg/960px-Lacrymaria_olor_montage-dark.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    1800,
+    600
+   ],
+   "license": "CC BY-SA 3.0",
+   "artist": "<a href=\"//commons.wikimedia.org/wiki/User:Polypompholyx\" title=\"User:Polypompho"
+  },
+  {
+   "title": "Lacrymaria olor - 160x (13465052303).jpg",
+   "species": "lacrymaria",
+   "lighting": "darkfield",
+   "what_to_look_for": "Body and extended neck glowing on black.",
+   "page": "https://commons.wikimedia.org/wiki/File:Lacrymaria_olor_-_160x_(13465052303).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/d/d4/Lacrymaria_olor_-_160x_%2813465052303%29.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Lacrymaria_olor_-_160x_%2813465052303%29.jpg/960px-Lacrymaria_olor_-_160x_%2813465052303%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    2676,
+    2508
+   ],
+   "license": "CC BY 2.0",
+   "artist": "<a rel=\"nofollow\" class=\"external text\" href=\"https://www.flickr.com/people/5992"
+  },
+  {
+   "title": "Dileptus anatinus - 400x (28675744772).jpg",
+   "species": "dileptus",
+   "lighting": "dic",
+   "what_to_look_for": "Body with a long curved trunk (proboscis) a third of the length; trunk thickness tapers.",
+   "page": "https://commons.wikimedia.org/wiki/File:Dileptus_anatinus_-_400x_(28675744772).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/4/44/Dileptus_anatinus_-_400x_%2828675744772%29.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Dileptus_anatinus_-_400x_%2828675744772%29.jpg/960px-Dileptus_anatinus_-_400x_%2828675744772%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    2166,
+    2766
+   ],
+   "license": "CC BY 2.0",
+   "artist": "<a rel=\"nofollow\" class=\"external text\" href=\"https://www.flickr.com/people/5992"
+  },
+  {
+   "title": "Amoeba proteus (Light Microscope).jpg",
+   "species": "amoeba",
+   "lighting": "brightfield",
+   "what_to_look_for": "Granular blob with pseudopods; outline is the only thing that changes frame to frame.",
+   "page": "https://commons.wikimedia.org/wiki/File:Amoeba_proteus_(Light_Microscope).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/3/35/Amoeba_proteus_%28Light_Microscope%29.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Amoeba_proteus_%28Light_Microscope%29.jpg/960px-Amoeba_proteus_%28Light_Microscope%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    2156,
+    2319
+   ],
+   "license": "CC BY-SA 4.0",
+   "artist": "<a href=\"//commons.wikimedia.org/wiki/User:Fritzmann2002\" title=\"User:Fritzmann2"
+  },
+  {
+   "title": "Freshwater copepod (Copepoda) under darkfield microscopy.jpg",
+   "species": "daphnia",
+   "lighting": "darkfield",
+   "what_to_look_for": "Not Daphnia, but the same scale and lighting: bright hairy appendages, translucent body, dark gut. What a big crustacean does in darkfield.",
+   "page": "https://commons.wikimedia.org/wiki/File:Freshwater_copepod_(Copepoda)_under_darkfield_microscopy.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/f/f5/Freshwater_copepod_%28Copepoda%29_under_darkfield_microscopy.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Freshwater_copepod_%28Copepoda%29_under_darkfield_microscopy.jpg/960px-Freshwater_copepod_%28Copepoda%29_under_darkfield_microscopy.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    5184,
+    3456
+   ],
+   "license": "CC BY 4.0",
+   "artist": "Jan"
+  },
+  {
+   "title": "Daphnia pulex (Water Flea) specimens, Chapeltoun, East Ayrshire.jpg",
+   "species": "daphnia",
+   "lighting": "brightfield",
+   "what_to_look_for": "Oval carapace, tail spine, compound eye, two branched antennae.",
+   "page": "https://commons.wikimedia.org/wiki/File:Daphnia_pulex_(Water_Flea)_specimens,_Chapeltoun,_East_Ayrshire.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/f/ff/Daphnia_pulex_%28Water_Flea%29_specimens%2C_Chapeltoun%2C_East_Ayrshire.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Daphnia_pulex_%28Water_Flea%29_specimens%2C_Chapeltoun%2C_East_Ayrshire.jpg/960px-Daphnia_pulex_%28Water_Flea%29_specimens%2C_Chapeltoun%2C_East_Ayrshire.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    2574,
+    1922
+   ],
+   "license": "CC BY-SA 4.0",
+   "artist": "R"
+  },
+  {
+   "title": "Dunkelfeld - 160x - Glockentierchen (10837449146).jpg",
+   "species": "vorticella",
+   "lighting": "darkfield",
+   "what_to_look_for": "Bell ciliates: rim glow with coloured fringe, interior nearly black. Best example of how empty a darkfield interior can be.",
+   "page": "https://commons.wikimedia.org/wiki/File:Dunkelfeld_-_160x_-_Glockentierchen_(10837449146).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/b/b0/Dunkelfeld_-_160x_-_Glockentierchen_%2810837449146%29.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Dunkelfeld_-_160x_-_Glockentierchen_%2810837449146%29.jpg/960px-Dunkelfeld_-_160x_-_Glockentierchen_%2810837449146%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    1015,
+    1392
+   ],
+   "license": "CC BY 2.0",
+   "artist": "<a rel=\"nofollow\" class=\"external text\" href=\"https://www.flickr.com/people/5992"
+  },
+  {
+   "title": "Euplotes - 160x - Dunkelfeld (8356971373).jpg",
+   "species": "other",
+   "lighting": "darkfield",
+   "what_to_look_for": "Hypotrich: faint rim, bright cirri tufts, lots of out-of-focus debris glow. Realistic background clutter.",
+   "page": "https://commons.wikimedia.org/wiki/File:Euplotes_-_160x_-_Dunkelfeld_(8356971373).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/4/41/Euplotes_-_160x_-_Dunkelfeld_%288356971373%29.jpg",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Euplotes_-_160x_-_Dunkelfeld_%288356971373%29.jpg/960px-Euplotes_-_160x_-_Dunkelfeld_%288356971373%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "mime": "image/jpeg",
+   "size": [
+    1200,
+    1592
+   ],
+   "license": "CC BY 2.0",
+   "artist": "<a rel=\"nofollow\" class=\"external text\" href=\"https://www.flickr.com/people/5992"
+  },
+  {
+   "title": "Ciliat - Dunkelfeld (7197634340).jpg",
+   "species": "other",
+   "lighting": "darkfield",
+   "what_to_look_for": "Small ciliate at low magnification: basically a bright blob. What most tracks will look like.",
+   "page": "https://commons.wikimedia.org/wiki/File:Ciliat_-_Dunkelfeld_(7197634340).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/e/e7/Ciliat_-_Dunkelfeld_%287197634340%29.jpg",
+   "thumb": "https://upload.wikimedia.org/wikipedia/commons/e/e7/Ciliat_-_Dunkelfeld_%287197634340%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+   "mime": "image/jpeg",
+   "size": [
+    874,
+    638
+   ],
+   "license": "CC BY 2.0",
+   "artist": "<a rel=\"nofollow\" class=\"external text\" href=\"https://www.flickr.com/people/5992"
+  },
+  {
+   "title": "Vorticella contracting DSC 1522.webm",
+   "species": "vorticella",
+   "lighting": "brightfield",
+   "what_to_look_for": "Video of a stalk contraction: the fast-event timing reference beside Stentor.",
+   "page": "https://commons.wikimedia.org/wiki/File:Vorticella_contracting_DSC_1522.webm",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/b/b9/Vorticella_contracting_DSC_1522.webm",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Vorticella_contracting_DSC_1522.webm/960px--Vorticella_contracting_DSC_1522.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+   "mime": "video/webm",
+   "size": [
+    1280,
+    720
+   ],
+   "license": "CC BY 4.0",
+   "artist": "Brandon Seah"
+  },
+  {
+   "title": "Dileptus.ogv",
+   "species": "dileptus",
+   "lighting": "brightfield",
+   "what_to_look_for": "Video: trunk sweeping while the body creeps.",
+   "page": "https://commons.wikimedia.org/wiki/File:Dileptus.ogv",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/e/ee/Dileptus.ogv",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/Dileptus.ogv/500px--Dileptus.ogv.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+   "mime": "application/ogg",
+   "size": [
+    640,
+    480
+   ],
+   "license": "CC BY-SA 3.0",
+   "artist": "<a href=\"//commons.wikimedia.org/wiki/User:Deuterostome\" title=\"User:Deuterostom"
+  },
+  {
+   "title": "Amoeba proteus.ogv",
+   "species": "amoeba",
+   "lighting": "brightfield",
+   "what_to_look_for": "Video: pseudopod flow, for the blob_phase rate.",
+   "page": "https://commons.wikimedia.org/wiki/File:Amoeba_proteus.ogv",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/0/08/Amoeba_proteus.ogv",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Amoeba_proteus.ogv/500px--Amoeba_proteus.ogv.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+   "mime": "application/ogg",
+   "size": [
+    640,
+    480
+   ],
+   "license": "CC BY-SA 3.0",
+   "artist": "<a href=\"//commons.wikimedia.org/wiki/User:Deuterostome\" title=\"User:Deuterostom"
+  },
+  {
+   "title": "Paramecium recorded with Microbescope, 2014-10-14.webm",
+   "species": "paramecium",
+   "lighting": "brightfield",
+   "what_to_look_for": "Video from a cheap scope: spiral swim, avoidance reactions, the speed benchmark.",
+   "page": "https://commons.wikimedia.org/wiki/File:Paramecium_recorded_with_Microbescope,_2014-10-14.webm",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/b/b3/Paramecium_recorded_with_Microbescope%2C_2014-10-14.webm",
+   "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/Paramecium_recorded_with_Microbescope%2C_2014-10-14.webm/960px--Paramecium_recorded_with_Microbescope%2C_2014-10-14.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+   "mime": "video/webm",
+   "size": [
+    1280,
+    720
+   ],
+   "license": "CC BY-SA 4.0",
+   "artist": "Sage"
+  }
+ ]
+}
