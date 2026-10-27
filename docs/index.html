@@ -248,7 +248,22 @@ uv run python track.py data/&lt;clip&gt;.mp4 --min-area 30</pre>
     <tr><td>Amoeba</td><td>engulfer</td><td class="n">100–500 µm</td><td class="n">µm/s</td><td>Timelapse subject.</td></tr>
     <tr><td>Hydra</td><td>top predator</td><td class="n">1–10 mm</td><td class="n">tentacles strike</td><td>Eats Daphnia. Needs a deep chamber.</td></tr>
     <tr><td>Daphnia / copepods</td><td>big prey</td><td class="n">1–3 mm</td><td class="n">jumps 10+ mm/s</td><td>Leaves frame in one jump. TOMLOV territory.</td></tr>
+    <tr><th colspan="5">Below that cast (40x territory)</th></tr>
+    <tr><td>Bacteria</td><td>base of the chain</td><td class="n">2–5 µm</td><td class="n">20–50 µm/s</td><td>Run-and-tumble. A point at 4x; what every ciliate here is eating.</td></tr>
+    <tr><td>Chlamydomonas, Euglena</td><td>flagellates, grazed</td><td class="n">10–70 µm</td><td class="n">~100 µm/s</td><td>Flagella and an eyespot. Jerky or corkscrew paths.</td></tr>
+    <tr><td>Diatoms</td><td>algae, grazed</td><td class="n">20–100 µm</td><td class="n">µm/s</td><td>Glass pillboxes gliding on the slide. Static to the tracker.</td></tr>
+    <tr><td>Tetrahymena, Halteria</td><td>bacterivores, prey</td><td class="n">25–60 µm</td><td class="n">0.5 mm/s; Halteria jumps</td><td>Small, fast, numerous. Halteria crosses 10 body lengths in a frame.</td></tr>
+    <tr><td>Coleps</td><td>predator / scavenger</td><td class="n">50–80 µm</td><td class="n">~0.4 mm/s</td><td>Armoured barrel. Swarms anything wounded.</td></tr>
+    <tr><th colspan="5">Alongside it</th></tr>
+    <tr><td>Vorticella</td><td>sessile bacterivore</td><td class="n">60 µm bell on a 250 µm stalk</td><td class="n">coils in ms</td><td>A contraction event like Stentor's, on a stalk.</td></tr>
+    <tr><td>Spirostomum</td><td>giant grazer</td><td class="n">1–3 mm</td><td class="n">~0.4 mm/s</td><td>Worm-like ciliate; snaps to a quarter length when touched.</td></tr>
+    <tr><td>Actinosphaerium</td><td>sessile predator</td><td class="n">200–500 µm</td><td class="n">still</td><td>A sun of stiff rays. Swimmers stick and are drawn in over minutes.</td></tr>
+    <tr><th colspan="5">Above it (TOMLOV territory)</th></tr>
+    <tr><td>Cyclops</td><td>predator (copepod)</td><td class="n">~1 mm</td><td class="n">hops 20 mm/s</td><td>Grabs rotifers and ciliates between hops.</td></tr>
+    <tr><td>Ostracods, nematodes, tardigrades, gastrotrichs</td><td>grazers</td><td class="n">0.1–1 mm</td><td class="n">varied</td><td>Seed shrimp, roundworm S-curves, eight-legged water bears, gliders.</td></tr>
+    <tr><td>Planaria</td><td>predator (flatworm)</td><td class="n">3–10 mm</td><td class="n">~0.5 mm/s</td><td>Fills the frame. Takes worms and rotifers.</td></tr>
   </table></div>
+  <p>All of these are in <code>species.py</code> with prey lists, so the simulator can be set at any rung: <code>ecosim.py --preset microbe</code>, <code>ciliate</code> or <code>metazoan</code>.</p>
   <details>
     <summary>Footage to calibrate expectations <small>and why ours will look different</small></summary>
     <div class="body">

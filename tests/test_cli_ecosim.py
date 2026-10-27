@@ -4,6 +4,7 @@ trackstats -> numbers again. Plus the CLIs' negative paths."""
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 
 import pytest
@@ -59,11 +60,14 @@ def test_ecosim_writes_clip_truth_events_and_sidecar(eco_clip):
     events = eco_clip.with_name("eco_events.csv")
     sidecar = eco_clip.with_suffix(".json")
     assert truth.exists() and events.exists() and sidecar.exists()
-    assert truth.read_text().splitlines()[0] == ("frame,obj_id,x,y,species,state,heading,length_px")
+    assert truth.read_text().splitlines()[0] == (
+        "frame,obj_id,x,y,species,state,heading,length_px,z_um"
+    )
     assert events.read_text().splitlines()[0] == "frame,t,kind,actor,subject,x,y"
     sc = json.loads(sidecar.read_text())
     assert sc["source"] == "ecosim" and sc["um_per_px"] == 4 and sc["fps"] == 30
     assert sc["cast"] == {"paramecium": 4, "debris": 30}
+    assert sc["depth_um"] == 150 and sc["dof_um"] == 30 and sc["focus_um"] == 75
     assert sc["species"]["paramecium"]["motion"]["speed"] == 1000
     t = read_truth(truth)
     assert len(t) == 180 and len(t[0]) == 34
@@ -77,18 +81,43 @@ def test_tracker_follows_every_paramecium_through_the_debris(eco_clip):
     species = _read_truth_species(truth_path)
     paras = {oid for oid, sp in species.items() if sp == "paramecium"}
     only = {f: {o: xy for o, xy in objs.items() if o in paras} for f, objs in truth.items()}
-    s = score(only, read_tracks(eco_clip.with_name("eco_tracks.csv")), match_px=30)
+    tracks = read_tracks(eco_clip.with_name("eco_tracks.csv"))
+    s = score(only, tracks, match_px=30)
     assert set(s["coverage"]) == paras, s
     for oid in paras:
         assert s["coverage"][oid] > 0.7, (oid, s)
         # v1 greedy: 0.17..0.42. Auction + area gate + fragment rule + last-position
-        # anchor: 0.27..0.63. With merge groups (velocity carried through a shared
-        # blob): 0.25..0.41 here, because in this 2D sim every overlap is a bump and
-        # the Paramecium reverses inside the merge, so extrapolation picks the wrong
-        # body at the split; the merge rule is right for pass-overs, which need depth
-        # in the sim to exist (see TODO.md). Coverage is the contract.
-        assert s["stability"][oid] > 0.2, (oid, s)
-    assert s["median_error"] < 4.0, s
+        # anchor: 0.27..0.63. Merge groups (velocity carried through a shared blob)
+        # in the flat sim: 0.25..0.41, every overlap a bump. The clip now has a
+        # 150 µm chamber, so most crossings are pass-overs: 0.39..0.82 on this seed
+        # on macOS, 0.28..0.83 on the Linux runner (OpenCV's MOG2 differs in the
+        # last bit, and a pass-over flips on it). Seeds 12-13 are a wash, 0.28-0.38
+        # either way. Coverage is the contract; the floor is the Linux number.
+        assert s["stability"][oid] > 0.25, (oid, s)
+    # Position error is judged where a body is alone (2.3 px here). Stacked bodies
+    # are one blob for seconds at a time in a deep chamber, and inside a merge
+    # group a track coasts on its velocity (11 px here), so the merged frames
+    # carry their own looser bound.
+    body_px = 220 / 4  # Paramecium length at this scale
+    alone = {
+        f: {o: xy for o, xy in objs.items() if _nearest_other(objs, o) > 1.2 * body_px}
+        for f, objs in only.items()
+    }
+    stacked = {
+        f: {o: xy for o, xy in objs.items() if _nearest_other(objs, o) <= 1.2 * body_px}
+        for f, objs in only.items()
+    }
+    s_alone = score(alone, tracks, match_px=30)
+    s_stacked = score(stacked, tracks, match_px=30)
+    assert s_alone["n_errors"] > 0.5 * s["n_errors"], (s_alone["n_errors"], s["n_errors"])
+    assert s_alone["median_error"] < 4.0, s_alone
+    assert s_stacked["median_error"] < 0.25 * body_px, s_stacked  # within a quarter body
+
+
+def _nearest_other(objs: dict[int, tuple[float, float]], oid: int) -> float:
+    tx, ty = objs[oid]
+    others = [math.hypot(x - tx, y - ty) for o, (x, y) in objs.items() if o != oid]
+    return min(others) if others else math.inf
 
 
 def test_trackstats_recovers_the_speed_it_was_given(eco_clip):
@@ -105,7 +134,9 @@ def test_trackstats_recovers_the_speed_it_was_given(eco_clip):
     est = rep["species"]["paramecium"]["motion"]["speed"]
     assert 550 < est < 1150, rep["species"]  # model says 1000; individuals spread +-25 %
     assert 15 < rep["drift_um_s"] < 60, rep["drift_um_s"]  # the 30 µm/s current, from debris
-    assert rep["drift_known_frac"] > 0.5
+    # debris tracks that survive long enough to carry the current: 0.5x on macOS,
+    # 0.494 on the Linux runner (same MOG2 last-bit difference as the stability test)
+    assert rep["drift_known_frac"] > 0.45
     fitted = load_params(params.read_text())  # the output is a valid --params file
     assert fitted["paramecium"].motion.speed == est
 
@@ -151,6 +182,9 @@ def test_dump_params_is_valid_json(tmp_path):
         ["--um-per-px", "0"],
         ["--size", "10x10"],
         ["--polarity", "phase"],
+        ["--depth", "-1"],
+        ["--dof", "0"],
+        ["--depth", "100", "--focus", "150"],
         ["--blur-um", "-5"],
     ],
 )

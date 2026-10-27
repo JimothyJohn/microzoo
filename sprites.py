@@ -73,19 +73,58 @@ def stentor_length(length: float, contraction: float) -> float:
 def canvas_px(spec: Species, length_px: float, width_px: float, neck_reach_px: float = 0) -> int:
     """Square local canvas side that fits the sprite in every pose (odd, >= 9)."""
     # snouts, feet and corona discs poke past the half length; necks and antennae further
-    reach = length_px * 0.7 + (neck_reach_px if spec.look.neck else 0.0)
-    if spec.look.antennae:
+    look = spec.look
+    reach = length_px * 0.7 + (neck_reach_px if look.neck else 0.0)
+    if look.antennae:
         reach = max(reach, length_px * 0.5 + length_px * 0.45)
+    if look.axopodia:
+        reach = max(reach, length_px * 0.5 * 1.75)
+    if look.tentacles:
+        reach = max(reach, length_px * 0.2 + length_px * 0.85)
+    if look.flagellum:
+        reach = max(reach, length_px * 0.5 + length_px * 0.95)
     side = int(math.ceil(2 * max(reach, width_px * 0.5) * 1.12)) + 6
     return max(9, side | 1)
 
 
+def _dims(spec: Species, st: SpriteState) -> tuple[float, float]:
+    """(length, width) in local px after shrink/swell/contraction. Width never drops
+    below one pixel: a nematode at 4x is a line, not nothing."""
+    ln = st.length_px * st.shrink
+    wd = max(1.0, st.width_px * st.shrink * st.swell)
+    if spec.look.contractile:
+        ln *= 1 - 0.6 * st.contraction
+    return ln, wd
+
+
 def _polygon(spec: Species, st: SpriteState, n: int = 72) -> np.ndarray:
     """Body outline in local px, (n, 2). Anterior at +x."""
-    ln = st.length_px * st.shrink
-    wd = st.width_px * st.shrink * st.swell
+    ln, wd = _dims(spec, st)
     t = np.linspace(0, 2 * math.pi, n, endpoint=False)
     look = spec.look
+    if look.stalk:  # Vorticella: the bell only; the stalk is a line feature
+        le = stentor_length(ln, st.contraction)
+        bell = 0.22 * ln
+        u = np.linspace(0, 1, n // 2)
+        h = 0.5 * wd * (0.35 + 0.65 * u**1.2) * _round_ends(u, 0.1, 0.12)
+        return _mirror(0.5 * le - bell + bell * u, h)
+    if look.worm:  # nematode: S-curve centreline, the wave travels with phase
+        u = np.linspace(0, 1, n // 2)
+        x = -0.5 * ln + ln * u
+        yc = 0.12 * ln * np.sin(2 * math.pi * (1.5 * u + st.phase))
+        h = 0.5 * wd * _round_ends(u, 0.06, 0.06)
+        top = np.stack([x, yc - h], axis=1)
+        bottom = np.stack([x[::-1], (yc + h)[::-1]], axis=1)
+        return np.concatenate([top, bottom], axis=0)
+    if look.tentacles:  # Hydra: the column; tentacles are features off the +x end
+        cx = -0.15 * ln
+        return np.stack([cx + 0.35 * ln * np.cos(t), 0.5 * wd * np.sin(t)], axis=1)
+    if look.axopodia:  # heliozoan: a ball
+        return np.stack([0.5 * ln * np.cos(t), 0.5 * wd * np.sin(t)], axis=1)
+    if look.shell:  # rigid: a sphere stays round, a valve or frustule is squarer than an oval
+        e = 2.0 if spec.aspect >= 0.95 else 2.5
+        r = (np.abs(np.cos(t)) ** e + np.abs(np.sin(t)) ** e) ** (-1 / e)
+        return np.stack([0.5 * ln * r * np.cos(t), 0.5 * wd * r * np.sin(t)], axis=1)
     if look.trumpet:
         c = st.contraction
         le = stentor_length(ln, c)
@@ -161,12 +200,60 @@ def _bezier(p0, p1, p2, n: int = 24) -> np.ndarray:
 
 def _features(spec: Species, st: SpriteState, side: int, rng: np.random.Generator):
     """Extra bright structures (lines) and a mask of appendages that count as body."""
-    ln = st.length_px * st.shrink
-    wd = st.width_px * st.shrink * st.swell
+    ln, wd = _dims(spec, st)
     lines = np.zeros((side, side), np.float32)
     body = np.zeros((side, side), np.float32)
     look = spec.look
     thin = max(1, int(round(0.05 * wd)))
+    if look.flagellum:
+        for i in range(look.flagellum):
+            y0 = (i - (look.flagellum - 1) / 2) * 0.3 * wd
+            u = np.linspace(0, 1, 28)
+            wave = 0.1 * ln * np.sin(2 * math.pi * (2.5 * u - st.phase)) * u
+            pts = np.stack([0.5 * ln + 0.9 * ln * u, y0 + wave], axis=1)
+            _line(lines, pts, 1, 0.7)
+    if look.eyespot > 0:
+        cv2.circle(
+            lines,
+            (int(round(0.35 * ln + side // 2)), int(round(-0.15 * wd + side // 2))),
+            max(1, int(round(0.08 * wd))),
+            float(look.eyespot),
+            -1,
+            lineType=cv2.LINE_AA,
+        )
+    if look.stalk:
+        c = st.contraction
+        le = stentor_length(ln, c)
+        u = np.linspace(0, 1, 40)
+        x = -0.5 * le + (le - 0.22 * ln) * u
+        y = 0.3 * wd * c * np.sin(2 * math.pi * 4 * u)  # coils as it contracts
+        pts = np.stack([x, y], axis=1)
+        _line(lines, pts, max(1, int(round(0.04 * wd))), 0.7)
+        _line(body, pts, max(1, int(round(0.07 * wd))), 1.0)
+    if look.axopodia:
+        r0, r1 = 0.5 * wd * 0.95, 0.5 * ln * 1.7
+        for a in np.linspace(0, 2 * math.pi, 28, endpoint=False) + rng.uniform(-0.08, 0.08, 28):
+            ray = np.array(
+                [[r0 * math.cos(a), r0 * math.sin(a)], [r1 * math.cos(a), r1 * math.sin(a)]]
+            )
+            _line(lines, ray, 1, 0.45)
+    if look.tentacles:
+        sway = 0.25 * math.sin(2 * math.pi * st.phase)
+        for i in range(look.tentacles):
+            a = (i - (look.tentacles - 1) / 2) * 1.8 / max(1, look.tentacles - 1) + sway
+            p0 = np.array([0.2 * ln, 0.0])
+            p1 = p0 + 0.45 * ln * np.array([math.cos(0.6 * a), math.sin(0.6 * a)])
+            p2 = p0 + 0.85 * ln * np.array([math.cos(a), math.sin(a)])
+            curve = _bezier(p0, p1, p2)
+            _line(lines, curve, max(1, int(round(0.12 * wd))), 0.7)
+            _line(body, curve, max(1, int(round(0.18 * wd))), 1.0)
+    if look.legs:
+        for i in range(look.legs):
+            x = -0.35 * ln + 0.7 * ln * i / max(1, look.legs - 1)
+            stride = 0.12 * ln * math.sin(2 * math.pi * st.phase + i * 1.3)
+            for sgn in (-1, 1):
+                seg = np.array([[x, sgn * 0.42 * wd], [x + stride, sgn * 0.75 * wd]])
+                _line(body, seg, max(1, int(round(0.16 * wd))), 1.0)
     if look.belts:
         for xb in (0.22, -0.18):
             e = np.stack(
@@ -259,9 +346,8 @@ def render_sprite(
     ``rng`` only drives the per-frame cilia flicker; layout comes from
     ``st.seed`` so it is stable across frames.
     """
-    ln = st.length_px * st.shrink
-    wd = st.width_px * st.shrink * st.swell
-    if ln < 1 or wd < 1:
+    ln, wd = _dims(spec, st)
+    if ln < 1:
         side = canvas or 9
         return np.zeros((side, side, 2), np.float32), side
     side = canvas or canvas_px(spec, st.length_px, st.width_px, st.neck)
@@ -381,7 +467,7 @@ def demo_state(
     st = SpriteState(length_px=length_px, width_px=length_px * spec.aspect, phase=phase, seed=seed)
     look = spec.look
     scale = um_per_px or (spec.length_um / length_px)
-    if look.trumpet:
+    if look.trumpet or look.stalk or look.contractile:
         # extended most of the cycle, snaps shut at 0.6, re-extends
         st.contraction = 1.0 if 0.6 <= phase < 0.66 else max(0.0, 1 - (phase - 0.6) / 0.34)
         st.contraction = st.contraction if phase >= 0.6 else 0.0
@@ -429,6 +515,8 @@ def sprite_sheet(
             "um_per_px": round(um_per_px, 4),
             "length_um": spec.length_um,
             "role": spec.role,
+            "tier": spec.tier,
+            "prey": list(spec.motion.prey),
         }
     return np.clip(sheet, 0, 255).astype(np.uint8), atlas
 
