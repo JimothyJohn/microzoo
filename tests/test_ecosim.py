@@ -208,6 +208,17 @@ def test_render_returns_a_frame_of_the_right_polarity(polarity):
     assert (img[..., 0].max() > 150) if polarity == "darkfield" else (img[..., 0].min() < 100)
 
 
+def test_blur_softens_edges_and_rejects_negatives():
+    w = World({"paramecium": 2}, (960, 720), seed=1)
+    sharp = render(w, (320, 240), 3.0, "darkfield", np.random.default_rng(0), noise=0.0)
+    soft = render(w, (320, 240), 3.0, "darkfield", np.random.default_rng(0), noise=0.0, blur_um=20)
+    g = lambda im: np.abs(np.diff(im[..., 0].astype(float), axis=1)).max()  # noqa: E731
+    assert g(soft) < 0.6 * g(sharp), (g(soft), g(sharp))
+    assert soft[..., 0].max() > 100  # still a visible organism
+    with pytest.raises(ValueError, match="blur"):
+        render(w, (64, 48), 3.0, "darkfield", np.random.default_rng(0), blur_um=-1)
+
+
 def test_render_rejects_unknown_polarity():
     w = World({"paramecium": 1}, (300, 300), seed=1)
     with pytest.raises(ValueError, match="polarity"):

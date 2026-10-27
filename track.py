@@ -61,8 +61,14 @@ class Track:
     last_frame: int
     kf: cv2.KalmanFilter = field(repr=False)
     missed: int = 0
-    # (frame, x, y, area, w, h) for every frame with a measurement.
+    # (frame, x, y, area, w, h) for every frame with a measurement. While the
+    # track shares one blob with another (``merged``), x, y are its own
+    # extrapolated position and area, w, h are the shared blob's.
     points: list[tuple[int, float, float, float, int, int]] = field(default_factory=list)
+    merged: bool = False
+    group: int = 0  # which merge group, while merged
+    own_area: float = 0.0  # last area measured before the merge
+    own_extent: float = 0.0  # max(w, h) before the merge
 
     @property
     def hits(self) -> int:
@@ -256,7 +262,11 @@ class Tracker:
         fragment_scale: float = 0.6,
         area_ratio: float = 6.0,
         anchor_last: bool = True,
+        merge_ratio: float = 1.5,
     ):
+        # A matched blob at least this many times its track's own area, with another
+        # track's prediction inside it, is two bodies overlapping (0 disables).
+        self.merge_ratio = merge_ratio
         # Gate on the nearer of the Kalman prediction and the last measured position.
         # A Paramecium's avoiding reaction reverses it in one frame; the constant-
         # velocity prediction keeps going and would be out of reach three frames later.
@@ -283,43 +293,120 @@ class Tracker:
         self.live: list[Track] = []
         self.dead: list[Track] = []
         self._next_id = 1
+        self._next_group = 0
+
+    @staticmethod
+    def _inside(d: Detection, xy: np.ndarray, pad: float) -> bool:
+        """Is ``xy`` inside detection ``d``'s box grown by ``pad`` on every side?"""
+        return bool(abs(xy[0] - d.x) <= d.w / 2 + pad and abs(xy[1] - d.y) <= d.h / 2 + pad)
+
+    def _coast(self, t: Track, xy: np.ndarray, d: Detection, frame_idx: int) -> None:
+        """Advance a merged track on its own prediction; record the shared blob."""
+        t.missed = 0
+        t.last_frame = frame_idx
+        t.points.append((frame_idx, float(xy[0]), float(xy[1]), d.area, d.w, d.h))
+
+    def _measure(self, t: Track, d: Detection, frame_idx: int) -> None:
+        t.kf.correct(np.array([[d.x], [d.y]], dtype=np.float32))
+        t.missed = 0
+        t.last_frame = frame_idx
+        t.points.append((frame_idx, d.x, d.y, d.area, d.w, d.h))
 
     def step(self, frame_idx: int, dets: list[Detection]) -> None:
         for t in self.live:
             t.kf.predict()
-        preds = np.array([t.predicted_xy() for t in self.live], dtype=np.float64).reshape(-1, 2)
+        live = self.live
+        preds = np.array([t.predicted_xy() for t in live], dtype=np.float64).reshape(-1, 2)
         # each live track's last blob extent: a body that splits sheds fragments this far out
         extent = np.array(
-            [max(t.points[-1][4], t.points[-1][5]) for t in self.live], dtype=np.float64
+            [t.own_extent if t.merged else max(t.points[-1][4], t.points[-1][5]) for t in live],
+            dtype=np.float64,
         )
-        # last measured position: the second anchor for gating (reversals)
-        last_xy = np.array([t.points[-1][1:3] for t in self.live], dtype=np.float64).reshape(-1, 2)
+        last_area = np.array(
+            [t.own_area if t.merged else t.points[-1][3] for t in live], dtype=np.float64
+        )
+        # last measured position: the second anchor for gating (reversals). A merged
+        # track has no measurement of its own; its anchor is the extrapolation.
+        last_xy = np.array(
+            [preds[i] if t.merged else t.points[-1][1:3] for i, t in enumerate(live)],
+            dtype=np.float64,
+        ).reshape(-1, 2)
         pts = np.array([(d.x, d.y) for d in dets], dtype=np.float64).reshape(-1, 2)
         feasible = None
         if self.area_ratio > 0 and preds.shape[0] and pts.shape[0]:
             # a 9 px debris speck may not claim a 60 px body that swam past it
-            last = np.array([t.points[-1][3] for t in self.live], dtype=np.float64)
             now = np.array([d.area for d in dets], dtype=np.float64)
-            ratio = np.maximum(last[:, None] / now[None, :], now[None, :] / last[:, None])
+            ratio = np.maximum(last_area[:, None] / now[None, :], now[None, :] / last_area[:, None])
             feasible = ratio <= self.area_ratio
         pairs = self._assign(
             preds, pts, self.max_dist, feasible, last_xy if self.anchor_last else None
         )
+        owner = {j: i for i, j in pairs}
+        matched_t = set(owner.values())
+        matched_d = set(owner)
 
-        matched_t = set()
-        matched_d = set()
-        for i, j in pairs:
-            t, d = self.live[i], dets[j]
-            t.kf.correct(np.array([[d.x], [d.y]], dtype=np.float32))
-            t.missed = 0
-            t.last_frame = frame_idx
-            t.points.append((frame_idx, d.x, d.y, d.area, d.w, d.h))
-            matched_t.add(i)
-            matched_d.add(j)
+        # Two bodies overlapping read as one blob. When a matched blob has grown past
+        # merge_ratio times its track's own area and an unmatched track's prediction
+        # falls inside it, both tracks enter the blob: neither is corrected with the
+        # shared centroid, both carry their velocity through, and at the split the
+        # assignment above (anchored on the extrapolations) hands each its own body.
+        if self.merge_ratio > 0:
+            for j, i in owner.items():
+                d = dets[j]
+                if live[i].merged or d.area < self.merge_ratio * last_area[i]:
+                    continue
+                joiners = [
+                    k
+                    for k, t in enumerate(live)
+                    if k not in matched_t
+                    and not t.merged
+                    and self._inside(d, preds[k], extent[k] / 2)
+                ]
+                if not joiners:
+                    continue
+                self._next_group += 1
+                for k in (i, *joiners):
+                    t = live[k]
+                    t.merged, t.group = True, self._next_group
+                    t.own_area, t.own_extent = last_area[k], extent[k]
+
+        # Resolve every group: it holds together while exactly one blob, big enough to
+        # be both bodies, is where the members are (matched by a member, or holding a
+        # member's extrapolation). Membership does not depend on where the extrapolation
+        # drifts meanwhile; it ends only when the shared blob splits or shrinks.
+        coast: dict[int, Detection] = {}
+        groups: dict[int, list[int]] = {}
+        for i, t in enumerate(live):
+            if t.merged:
+                groups.setdefault(t.group, []).append(i)
+        for members in groups.values():
+            blobs = {
+                owner_j
+                for owner_j in (self._det_of(i, owner) for i in members)
+                if owner_j is not None
+            }
+            for j in range(len(dets)):
+                if j in matched_d or j in blobs:
+                    continue
+                if any(self._inside(dets[j], preds[i], extent[i] / 2) for i in members):
+                    blobs.add(j)
+            floor = self.merge_ratio * min(live[i].own_area for i in members)
+            if len(blobs) == 1 and dets[next(iter(blobs))].area >= floor > 0:
+                for i in members:
+                    coast[i] = dets[next(iter(blobs))]
+            else:
+                for i in members:
+                    live[i].merged = False
 
         still_live: list[Track] = []
-        for i, t in enumerate(self.live):
-            if i in matched_t:
+        for i, t in enumerate(live):
+            if i in coast:
+                self._coast(t, preds[i], coast[i], frame_idx)
+                still_live.append(t)
+                continue
+            j = self._det_of(i, owner)
+            if j is not None:
+                self._measure(t, dets[j], frame_idx)
                 still_live.append(t)
                 continue
             t.missed += 1
@@ -344,6 +431,13 @@ class Tracker:
             t.points.append((frame_idx, d.x, d.y, d.area, d.w, d.h))
             self._next_id += 1
             self.live.append(t)
+
+    @staticmethod
+    def _det_of(i: int, owner: dict[int, int]) -> int | None:
+        for j, k in owner.items():
+            if k == i:
+                return j
+        return None
 
     def all_tracks(self) -> list[Track]:
         return sorted(self.dead + self.live, key=lambda t: t.id)
@@ -446,6 +540,7 @@ def _pass1(args: argparse.Namespace, path: Path) -> tuple[Tracker, dict]:
         area_ratio=args.area_ratio,
         process_noise=args.process_noise,
         anchor_last=not args.no_anchor_last,
+        merge_ratio=args.merge_ratio,
     )
 
     idx = 0
@@ -783,6 +878,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=6.0,
         help="a track may only take a blob whose area is within this factor of its last one "
         "(keeps debris tracks from stealing a swimmer that passes; 0 disables)",
+    )
+    p.add_argument(
+        "--merge-ratio",
+        type=float,
+        default=1.5,
+        help="a blob this many times a track's own area with another track's prediction "
+        "inside it is two bodies overlapping: both carry their velocity through and "
+        "split by extrapolation (0 disables)",
     )
     p.add_argument(
         "--no-anchor-last",

@@ -19,16 +19,17 @@ search strings and a browser settles each in a minute.
    only pipettes, slides and coverslips (~$25, Home Science Tools). Nothing
    else is bought until G1 produces a tracked clip and G2 shows the
    TOMLOV's floor.
-2. **At G2, buy a complete used binocular Olympus CH-2 class scope
-   ($220–300), the LED kit ($34) and the USB 3 AR0234 C-mount camera
-   ($140) into the Mac Studio: Path B.** About $670 all-in with the Z axis
-   and consumables. The Pi 5 is deferred to G5 because today it costs $175
-   and its camera is out of stock everywhere; the architecture does not
-   change, only the order of purchase.
-3. **Path A (Pi 5 + Pi GS camera first) is $225 more today** and lands at
-   about $900 with the same scope. Take it only if the Pi has to be in the
-   loop from day one or if the Pi GS camera reappears at $50 and the Pi 5
-   drops back under $100.
+2. **At G2 the scope and the camera come off the used market, and resale
+   value sets the budget.** Decided 2026-10-26: Nick's deal scanner
+   watches eBay for the §4 watchlist. A part that resells for most of its
+   price (an Olympus BX or Nikon Eclipse class stand, a Basler or FLIR
+   global-shutter camera) has no price ceiling. The ~$670 Path B figure
+   is the floor: a CH-2 class scope and the new Arducam AR0234, bought
+   only if the scanner has turned up nothing better by the time G2 passes.
+3. **The order is Path B's and the Pi 5 stays at G5.** The Studio is the
+   capture box through G4 whichever camera arrives; the Pi has no resale
+   value and its camera is out of stock, so it is bought last. Path A as
+   a purchase order is retired.
 
 ## 2. Component vendors
 
@@ -151,9 +152,13 @@ questions saves a $250 doorstop.
 **Target prices:** complete binocular CH-2 / CHT $220–300; Alphaphot
 $250–350; anything above $350 should be a serviced or trinocular unit
 with a photo adapter included. New AmScope B120C at $300 is the ceiling
-for a new scope here.
+for a new scope here. Infinity stands (Olympus BX, Nikon Eclipse; §4
+watchlist) cost more and resell for more, so since 2026-10-26 their price
+is the scanner's call; the checklist above still applies, plus: UIS or
+CFI objectives with the 4x present, and the phototube type named, because
+it decides which 0.5x C-mount relay to hunt for.
 
-## 4. The two paths
+## 4. The two paths, and the decision
 
 | | Path A: Pi first | Path B: Studio first |
 |---|---|---|
@@ -169,13 +174,43 @@ for a new scope here.
 | Total rig with a $260 scope | ~$900 | ~$670 now, ~$980 after G5 |
 | Matches the roadmap as written | yes | re-sequences v1 "Pi capture" after v2–v3; nothing else moves |
 
-**Position:** Path B. The Studio is already on the bench and faster than
-the Pi at every step the next three gates need; the Pi's job is unattended
-48 h runs, which is G5; and the only part that is hard to buy today (the
-Pi GS camera) is the one Path B skips. The one thing Path B must prove
-early is the AR0234's real frame rate over USB 3 at full resolution
-(bring-up step 4); if it cannot hold 60 fps, 1280×720 at 120 fps is its
-other documented mode and still covers the 4x tracking view at 2.9 µm/px.
+**Decision, 2026-10-26 (Nick):** neither path as written. Keep Path B's
+order (Studio captures through G4, Pi at G5) but source the scope and the
+camera used, from eBay, through Nick's deal scanner, and let resale value
+rather than the $1,000 line govern the price: a part that can be sold on
+for most of what it cost may cost whatever a good listing asks. The
+new-part figures in this file are the floor if the scanner finds nothing.
+The gate ladder still says *when*; nothing is bought before G2 passes.
+
+**Watchlist for the scanner.** Search strings as eBay takes them. Resale
+is a judgement from how these lines hold price on the used market, not a
+measured number; the scanner's sold-listing history settles it. Sensor
+and SDK facts for the cameras are from memory and are listed in §6 as
+unverified: confirm on the datasheet before paying.
+
+| Search string | What it is | Why it is on the list | Resale | Check before paying |
+|---|---|---|---|---|
+| `olympus bx40`, `olympus bx41`, `olympus bx50` | infinity (UIS) research stand, trinocular common | the stand people keep; darkfield and a C-mount phototube are standard options | strong | 4x and 10x UIS objectives present; 1.25 NA Abbe condenser with a filter tray; trinocular head or U-TR30 listed; the phototube's C-mount adapter (Olympus U-TV0.5XC class, 0.5x) is a separate hunt |
+| `nikon eclipse e200`, `nikon eclipse e400`, `nikon eclipse e600` | CFI infinity stand | same class as the BX; E200 is the teaching variant and cheaper | strong (E400/E600), moderate (E200) | CFI 4x and 10x; condenser with filter tray; trinocular tube and its 0.5x C-mount relay |
+| `olympus cx31`, `olympus cx41`, `nikon eclipse e100` | teaching infinity stands | cheaper way into infinity optics; trinocular versions exist | moderate | same checks; many ship with only 10x/40x/100x, so the 4x must be in the photos |
+| `olympus ch-2`, `olympus ch30`, `nikon alphaphot` | finite-tube teaching stands | the floor; §3 checklist written for them | low | §3 |
+| `basler aca1920-155um`, `basler aca1920-40um` | USB3 Vision global-shutter camera, 1920×1200, C-mount | the machine-vision version of the AR0234 plan with a real SDK and real resale | strong | mono (`um`), USB 3 (`u`); pylon SDK installs on this macOS; full-res frame rate on the datasheet |
+| `flir blackfly s bfs-u3-23s3m`, `bfs-u3-16s2m` | USB3 Vision global shutter, 2.3 MP / 1.6 MP, C-mount | same class as the Basler | strong | Spinnaker SDK status on macOS is not known: verify, or plan to capture on the Pi 5 (Linux arm64 SDK) and pull G5 forward |
+| `daheng mer2-231-41u3m` | USB3 Vision global shutter, 2.3 MP | the cheap machine-vision line | moderate | Galaxy SDK on macOS; fewer buyers when it is sold on |
+| `basler aca2440-75um` | 5 MP global shutter, USB 3 | the Tier 2 camera from `CLAUDE.md`, now fair at G2 if it comes used | strong | USB 3 bandwidth at full res; 3.45 µm pixels change the §4 numbers in `HARDWARE.md` |
+
+Two things change when a machine-vision camera replaces the AR0234. It
+is not a UVC device: OpenCV does not open it without the vendor SDK, so
+bring-up step 4 becomes "SDK installs on the Studio and streams at full
+resolution", and the Pi at G5 needs the same SDK's Linux arm64 build. And
+an infinity stand changes the adapter: the 23.2 mm eyepiece-tube reducer
+still works in a binocular head, but a trinocular phototube takes the
+maker's own 0.5x C-mount relay, which is its own used-market hunt.
+
+The one thing any USB camera must prove early is the real frame rate at
+full resolution over USB 3 (bring-up step 4); for the AR0234, if it cannot
+hold 60 fps, 1280×720 at 120 fps is its other documented mode and still
+covers the 4x tracking view at 2.9 µm/px.
 
 ## 5. Steps, with your time, cash and calendar
 
@@ -189,7 +224,7 @@ $235 at step 3.
 | 0 | Pond trip (§7), second jar, label both | 1–2 h | $0 (+$8 pipettes) | tomorrow | Jars on the sill, day 0 logged |
 | 1 | G0 watch: side-light the jar daily; order slides + coverslips + well slides ($25) | 5 min/day | $25 | 5–10 days | Visible swimmers |
 | 2 | G1: 30 s TOMLOV clips, `track.py`, tune `--min-area`; three clips where species cannot be told | 2–3 h | $0 | 1 week | G2 unlocked |
-| 3 | G2 buy: used scope (§3), generic 0.5x adapter, LED kit, AR0234 USB 3, filament if low | 2–4 h of listing reading, 30 min ordering | $470–550 | 1–2 weeks shipping | Parts on the bench |
+| 3 | G2 buy: the scanner's best scope and camera from the §4 watchlist (floor: CH-2 class + AR0234), 0.5x adapter matched to the scope's port, LED kit, filament if low | 2–4 h of listing reading, 30 min ordering | $470–550 floor; resale-strong buys exceed it on purpose | 1–2 weeks shipping | Parts on the bench |
 | 4 | G2 bring-up: `HARDWARE.md` §8 steps 1–6 (clean, LED, adapter, 60 fps, stop, light budget) | 1 day spread over a week | $0 | 1 week | Darkfield at 4x passes; 10x passes or falls back to oblique |
 | 5 | G2 → G3: live `track.py` on the Studio feed, one unattended hour, ≥20 tracks > 5 s | 1 h to set up, an hour unattended | $0 | 2–3 days | G3 unlocked |
 | 6 | G3 buy: stepper, TMC2209, coupler, 12 V supply | 15 min | $55–75 | 1 week | Parts on the bench |
@@ -227,7 +262,14 @@ is why it moved to the end.
 - **StepperOnline 11HS12-0674S** price and stock on omc-stepperonline.com:
   blocked. One browser visit; it halves the stepper line.
 - **Pi GS camera stock at SparkFun**: page showed both "in stock" and
-  "backorder". Only matters for Path A.
+  "backorder". Only matters if the Pi camera is ever bought (G5).
+- **Used machine-vision camera facts** in the §4 watchlist (sensor per
+  model, full-resolution frame rate, pylon/Spinnaker/Galaxy SDK support
+  on current macOS and on Linux arm64): from memory. Confirm on the
+  vendor datasheet and the SDK download page before paying for one.
+- **Olympus/Nikon 0.5x phototube relays** (U-TV0.5XC class and the Nikon
+  equivalent): part numbers and used prices not checked. Needed only if
+  the scanner lands a trinocular infinity stand.
 - **Kapton stack thickness**: an estimate from film plus adhesive. Measure
   a two-layer stack with calipers before trusting a 120 µm chamber claim.
 - **Carolina residential delivery to Texas**: not stated. Phone, only if

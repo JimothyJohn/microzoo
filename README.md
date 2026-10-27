@@ -38,7 +38,8 @@ Knobs: `--min-area` is the one you'll turn. `--scale 0.5` for 1080p on the Pi.
 `--birth-dist` / `--max-dist` / `--max-missed` / `--min-life` for the tracker. Matching is a
 pure-numpy auction (global optimum; `--assign greedy` for v1 behaviour) with an area gate
 (`--area-ratio`), blob-size birth suppression (`--fragment-scale`) and gating on the last
-measured position as well as the prediction, so reversing swimmers keep their id.
+measured position as well as the prediction, so reversing swimmers keep their id. Two bodies
+sharing one blob (`--merge-ratio`) carry their velocity through it and split by extrapolation.
 `python track.py -h` for the rest.
 
 ## Simulated ecosystem
