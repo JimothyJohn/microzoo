@@ -4,7 +4,7 @@
 UV ?= uv
 RUN := $(UV) run
 
-.PHONY: help install-dev lint fmt test-unit test-integration test-all requirements demo demo-eco sprites docs-media clean
+.PHONY: help install-dev lint fmt test-unit test-integration test-all test-network requirements demo demo-eco sprites docs-media clean
 
 help:  ## Show this help.
 	@awk 'BEGIN{FS=":.*##"} /^[a-zA-Z_-]+:.*##/ { printf "  \033[1m%-18s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -26,6 +26,9 @@ test-integration:  ## CLI end to end on synthetic clips.
 
 test-all:  ## Everything.
 	./scripts/test.sh all
+
+test-network:  ## Live EcoTaxa API tests (opt in; needs ecotaxa.obs-vlfr.fr).
+	$(RUN) pytest --network -m network
 
 requirements:  ## Regenerate requirements.txt (pinned, hashed) for the Pi.
 	$(UV) export --no-dev --no-emit-project -o requirements.txt

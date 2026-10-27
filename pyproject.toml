@@ -29,5 +29,8 @@ select = ["E", "F", "I", "UP", "B", "SIM", "N", "W"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["integration: runs the CLI end to end on synthetic video"]
+markers = [
+    "integration: runs the CLI end to end on synthetic video",
+    "network: live calls to ecotaxa.obs-vlfr.fr; opt in with pytest --network",
+]
 addopts = "-ra"

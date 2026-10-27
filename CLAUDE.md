@@ -50,7 +50,10 @@ Roadmap:
 - v3 Events from geometry alone (no ML): two tracks converge and one vanishes = capture; sessile blob area drops 80% in one frame = Stentor contraction. Trigger 10 s pre-roll clips. Subtract per-frame median motion of all tracks before calling anything "swimming" (convection). Optional single open-loop stage nudge to re-center a target near frame edge during an event; not a servo.
 - Sim food chain (exists): every species carries `prey` + `prey_ratio`; one feeding path (graze in a frame, or capture/ingest/digest) serves swimmers, hunters, sessile bells and traps (heliozoa, Hydra). `ecosim.py --preset` picks the rung; `species.food_web()` lists the edges.
 - v4 Species: YOLO fine-tune on own crops (~500 labeled), runs offline on Mac Studio. Ecology dashboard: who eats whom, encounter rates, speed distributions. Optional PlanktoScope census layer.
+- EcoTaxa bridge (exists): `ecotaxa.py export` turns a tracked clip into an EcoTaxa import bundle (one object per track, several frames per object, the 33 PlanktoScope morphometrics on OpenCV with scikit-image semantics, plus speed/turn/tortuosity columns); `ecotaxa.py pull` reads public projects. Reference: project 2748, the original PlanktoScope dataset (`references/ecotaxa_2748_summary.json`). Labelling for v4 can happen on EcoTaxa's UI and classifier.
 - 3D: focal sweep (Z ramp 10–20 Hz, sharpness-per-track gives Z), then lensless holography (bare sensor + point LED, Fresnel back-propagation).
+
+Site: `docs/` is published by GitHub Pages from `master:/docs` at https://microzoo.advin.io (Route 53 CNAME + Pages custom domain, scripts in `scripts/`). `docs/playground.html` is the interactive sim: a JS port of the ecosim behaviours over the darkfield sprite atlas, per-species colour, Z defocus as a mipmap bias against a focus plane, additive glow; `?preset=hunt&hud=1&focus=60&dof=20&t=15` is a shareable state. Keep its numbers equal to `species.py` when those change.
 
 ## Biology cheat sheet
 

@@ -101,3 +101,24 @@ def frames_of():
         return n, shape[1], shape[0]
 
     return _count
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--network",
+        action="store_true",
+        default=False,
+        help="also run tests marked 'network' (live calls to ecotaxa.obs-vlfr.fr)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Live-network tests are opt-in: deselected, not skipped, without --network."""
+    if config.getoption("--network"):
+        return
+    keep, drop = [], []
+    for item in items:
+        (drop if item.get_closest_marker("network") else keep).append(item)
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+        items[:] = keep
