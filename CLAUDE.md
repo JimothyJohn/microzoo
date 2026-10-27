@@ -36,6 +36,8 @@ Tier 1 target (~$560–730): used trinoc compound scope $300–450; darkfield st
 
 Tier 2 only if cropping bites: 5–12 MP USB3 global-shutter machine-vision cam (Daheng/Basler/FLIR) into the Mac Studio, $300–600.
 
+Sourcing policy (Nick, 2026-10-26): scope and camera come used off eBay through Nick's deal scanner; parts with strong resale value (Olympus BX / Nikon Eclipse class stands, Basler/FLIR cameras) have no budget ceiling, so a Tier 2 camera is fair at G2 if it comes used. The gate ladder still decides *when*. Watchlist: `hardware/SOURCING.md` §4.
+
 Key numbers (AR0234, 3 µm px, 1920 wide, 0.5x reducer): 4x → 1.5 µm/px, 2.9×1.8 mm field, Paramecium at 1 mm/s = 11 px/frame at 60 fps. 10x → 0.6 µm/px, 1.15×0.7 mm. Keep exposure ≤2 ms for ≤1 px motion blur.
 
 ## Software

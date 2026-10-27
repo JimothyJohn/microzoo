@@ -94,8 +94,8 @@
 <p class="lead">The complete filming rig from the jar to the clip, under $1,000 with the TOMLOV, the Mac Studio and the H2S counted at $0. Every part is tied to the gate that unlocks it. Nothing is bought until its gate is passed.</p>
 
 <div class="grid g3" style="margin-top:22px">
-  <div class="card"><div class="eyebrow">Path B, recommended</div><div class="big">$672<small>full tracking rig through G4, Studio as the capture box, Pi deferred to G5</small></div></div>
-  <div class="card"><div class="eyebrow">Path A</div><div class="big">$898<small>Pi 5 + Pi GS camera first; a $175 Pi and an out-of-stock camera make it dearer today</small></div></div>
+  <div class="card"><div class="eyebrow">Floor · Path B order, decided 2026-10-26</div><div class="big">$672<small>new-parts floor through G4, Studio as the capture box, Pi at G5; the scanner's used finds replace the scope and camera lines and may cost more</small></div></div>
+  <div class="card"><div class="eyebrow">Path A · retired</div><div class="big">$898<small>Pi 5 + Pi GS camera first; a $175 Pi and an out-of-stock camera made it dearer, and the Pi has no resale value</small></div></div>
   <div class="card"><div class="eyebrow">Tomorrow</div><div class="big">$0<small>the pond trip and G0 need jars and a baster; G1 needs $33 of slides and pipettes</small></div></div>
 </div>
 
@@ -223,12 +223,13 @@
 <div id="bars"></div>
 <p class="muted" style="margin-top:8px">Scope at the $260 asking midpoint for a complete binocular CH-2. A $400 trinocular adds $140 to every bar; Path A then crosses the line.</p>
 
-<h2 id="paths">The two paths</h2>
+<h2 id="paths">The two paths, and the decision</h2>
+<p class="lead">Decided 2026-10-26: Path B's order, but the scope and camera come used off eBay through Nick's deal scanner, and resale value sets the ceiling, not the $1,000 line. Watchlist and what to check before paying: <code>SOURCING.md</code> §4. The cards below are the new-parts floor.</p>
 <div class="grid g2">
-  <div class="card"><h3>Path B · Studio first <span class="tag path">recommended</span></h3>
+  <div class="card"><h3>Path B · Studio first <span class="tag path">order kept, parts go used</span></h3>
     <p>Arducam AR0234 USB 3, C/CS mount, into the Mac Studio for G2–G4. UVC, no driver. 1920×1200 at 3 µm: 40% more pixels and 15% finer sampling than the Pi GS camera, which is what species ID at 10x needs. The Studio encodes in real time, so the Pi 5's missing hardware encoder never comes up.</p>
     <p class="muted">Must prove early: real frame rate at full resolution over USB 3 (bring-up step 4). Fallback mode is 1280×720 at 120 fps. The Pi arrives at G5 for about $310 and the same camera moves to its USB 3 port.</p></div>
-  <div class="card"><h3>Path A · Pi first</h3>
+  <div class="card"><h3>Path A · Pi first <span class="tag">retired</span></h3>
     <p>Raspberry Pi 5 8 GB and the Pi Global Shutter Camera (IMX296, 1456×1088 at 60 fps, documented). The roadmap as written. <code>libcamera</code> support out of the box, C/CS mount.</p>
     <p class="muted">Today: the board is $175 (launch MSRP $80) and the camera is out of stock at Adafruit, CanaKit and PiShop, ambiguous at SparkFun. No hardware encoder: hour-long runs go to SSD as MJPEG at 35 GB/h. $225 more than B for the same gates.</p></div>
 </div>
