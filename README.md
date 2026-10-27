@@ -3,6 +3,12 @@
 Automated filming and tracking of pond microorganisms. Full brief, design
 decisions, gates and roadmap: [CLAUDE.md](CLAUDE.md).
 
+Site: [microzoo.advin.io](https://microzoo.advin.io) (GitHub Pages from `master:/docs`; the
+custom domain is wired by `scripts/dns-microzoo-advin.sh` and `scripts/pages-custom-domain.sh`).
+The [playground](https://microzoo.advin.io/playground.html) is the interactive version of the
+simulation: tap creatures into a darkfield chamber, set the focus plane and depth of field, watch
+the same behaviours `ecosim.py` renders, live, with the tracker's view as an overlay.
+
 ## Quickstart (Mac Studio)
 
 ```sh
