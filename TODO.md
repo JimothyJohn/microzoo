@@ -27,13 +27,22 @@
   difficulty: low
   answer: keep 80 % and wait for footage
   notes: no change; the v3 rule stays at 80 % until a real contraction is on film
-- [ ] 2026-10-25 — **ID swaps when two swimmers merge into one blob** — with the assignment fixed, what still breaks ids on ecosim clips is a true merge: two Paramecia overlap for ~6 frames, one track takes the merged blob, the other goes unmatched, and at the split the ids come out swapped (seed 11, frames 52–58). Stability on that clip is 0.27–0.63; `tests/test_cli_ecosim.py` pins 0.25.
+- [x] 2026-10-25 — **ID swaps when two swimmers merge into one blob** — with the assignment fixed, what still breaks ids on ecosim clips is a true merge: two Paramecia overlap for ~6 frames, one track takes the merged blob, the other goes unmatched, and at the split the ids come out swapped (seed 11, frames 52–58). Stability on that clip is 0.27–0.63; `tests/test_cli_ecosim.py` pins 0.25.
   needs: a choice of what continuity to trust through a merge
   result: ids survive crossings; G1 "stable IDs" holds on the sim, so the first real clip is judged on biology not tracker luck
   options: carry velocity through the merge (predict both, split by extrapolation) | appearance continuity (area, aspect, intensity histogram per track) | mark merged frames and stitch offline in trackstats | accept until real footage says how often it happens
   est: 4h
   difficulty: high
   depends: tracker-id-stability-on-ecosim-clips
+  answer: carry velocity through the merge (predict both, split by extrapolation)
+  notes: done 2026-10-26 (`--merge-ratio 1.5`, default; 0 disables). A matched blob ≥1.5× a track's own area with another track's extrapolation inside it forms a merge group; members coast on their own velocity, are not corrected with the shared centroid, and the split is assigned on the extrapolations. Clean on a head-on crossing (unit test). On the ecosim scenario it does not help (0.25–0.41): the 2D sim makes every overlap a bump, the Paramecium reverses inside the merge, and extrapolation picks the wrong body. Needs depth in the sim to measure; next item.
+- [ ] 2026-10-26 — **Give ecosim depth so swimmers can pass over each other** — the chamber is 100–200 µm deep and bodies are 50 µm thick, so most real crossings are pass-overs at different Z with no contact, which is exactly the case the merge rule in track.py is built for. The 2D sim turns every overlap into a bump (avoiding reaction), so the rule cannot be measured and the ID-stability number is pessimistic.
+  needs: a Z coordinate per organism (uniform in the chamber depth, slow random walk), bumps only when |dz| < body thickness, and either no visual change or a mild defocus blur with |z − focal plane| (the focal-sweep 3D route in CLAUDE.md wants that anyway)
+  result: ecosim clips with true pass-overs; `test_tracker_follows_every_paramecium_through_the_debris` measures the merge rule instead of the bump case; a defocus knob the autofocus work (v2) can reuse
+  options: Z for collisions only, no visual effect | Z with defocus blur (sigma from |dz|, depth of field 10–50 µm per CLAUDE.md) | leave 2D and measure the merge rule on real footage at G1
+  est: 3h
+  difficulty: med
+  depends: id-swaps-when-two-swimmers-merge-into-one-blob
 - [ ] 2026-10-25 — **Hardware path for G2: A or B?** — **A** Pi 5 + Pi Global Shutter Camera first (~$898 through G4; Pi 5 8 GB is $175 today and the GS camera is out of stock at 3 of 4 US resellers) or **B** USB 3 Arducam AR0234 C-mount into the Mac Studio for G2–G4, Pi bought at G5 (~$672 now, ~$980 after the Pi). `hardware/SOURCING.md` §4 recommends B. Not due until G2 passes; it decides $225 today and whether roadmap v1 "Pi capture" runs before or after v2–v3.
   needs: your pick, A or B
   result: bom.csv path column filtered, HARDWARE.md §9 updated, roadmap order in CLAUDE.md adjusted if B

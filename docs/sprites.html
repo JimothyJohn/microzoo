@@ -98,16 +98,16 @@ details[open] summary{border-bottom:1px solid var(--line);margin-bottom:10px}
 
 <section id="clips">
   <h2>Simulated clips</h2>
-  <p>Agent-based behaviour from <code>ecosim.py</code>: Paramecium spiral, bump and back off; Didinium hunt, strike, swallow and digest; Stentor snaps shut when something passes its bell; rotifers hold on; Lacrymaria whips its neck out; a slow rotating convection current moves the debris and every free swimmer. Deterministic per seed, with ground-truth tracks and an event log.</p>
+  <p>Agent-based behaviour from <code>ecosim.py</code>: Paramecium spiral, bump and back off; Didinium hunt, strike, swallow and digest; Stentor snaps shut when something passes its bell; rotifers hold on; Lacrymaria whips its neck out; a slow rotating convection current moves the debris and every free swimmer. Deterministic per seed, with ground-truth tracks and an event log. These previews are rendered as the owned TOMLOV TM3K-3D sees a chamber: about 2.9 mm across, with its 10–20 µm resolution floor applied as an optical blur before the sensor noise (<code>--blur-um 15</code>).</p>
   <div class="clips">
     <figure><video src="media/eco.mp4" autoplay muted loop playsinline controls></video>
-      <figcaption><b>Darkfield, 3 µm/px, 15 s</b>8 Paramecium, 2 Didinium, 1 Stentor, 2 rotifers, Lacrymaria, Dileptus, 30 debris. Two captures and four Stentor contractions in this seed.</figcaption></figure>
-    <figure><video src="media/hunt.mp4" autoplay muted loop playsinline controls></video>
-      <figcaption><b>The hunt, 1.8 µm/px</b>One Didinium, five Paramecium. Strike at 0.3 s, the prey folds crosswise and is drawn in over four seconds, the hunter swells and slows to digest.</figcaption></figure>
+      <figcaption><b>TOMLOV darkfield: top light, black stage</b>4.5 µm/px, 15 s. 8 Paramecium, 2 Didinium, 1 Stentor, 2 rotifers, Lacrymaria, Dileptus, 30 debris. The rim glow survives the blur; interior detail does not.</figcaption></figure>
     <figure><video src="media/eco_bf.mp4" autoplay muted loop playsinline controls></video>
-      <figcaption><b>Same tank, backlit</b>What the TOMLOV sees: dark bodies on a bright field. One flag on the renderer, same tracker settings.</figcaption></figure>
+      <figcaption><b>TOMLOV brightfield: backlit, top light off</b>Same seed, same cast, dark bodies on a bright field. One flag on the renderer; the tracker settings do not change.</figcaption></figure>
+    <figure><video src="media/hunt.mp4" autoplay muted loop playsinline controls></video>
+      <figcaption><b>The hunt, TOMLOV zoomed in, backlit</b>2.2 µm/px but still a 15 µm floor: the strike, the prey folding crosswise and the swollen hunter read as motion, not anatomy. That is the G2 "resolution ceiling" argument in one clip.</figcaption></figure>
     <figure><video src="media/eco_tracks.mp4" autoplay muted loop playsinline controls></video>
-      <figcaption><b>track.py on the darkfield clip</b>Coverage is good. The sim measured why IDs broke (debris tracks stealing bodies, reversals outrunning the prediction) and the fixes went into the tracker; what is left is two swimmers merging into one blob.</figcaption></figure>
+      <figcaption><b>track.py on the TOMLOV darkfield clip</b>Coverage is good. The sim measured why IDs broke (debris tracks stealing bodies, reversals outrunning the prediction, two bodies sharing one blob) and the fixes went into the tracker.</figcaption></figure>
   </div>
 </section>
 
@@ -121,7 +121,8 @@ details[open] summary{border-bottom:1px solid var(--line);margin-bottom:10px}
       <tr><td>convection</td><td class="n">30 µm/s</td><td class="n">30 µm/s</td><td class="n">28 µm/s (from 30 debris specks)</td></tr>
       <tr><td>track coverage</td><td></td><td></td><td class="n">0.87 – 0.94 per organism</td></tr>
       <tr><td>ID stability, v1 greedy</td><td></td><td></td><td class="n">0.17 – 0.42</td></tr>
-      <tr><td>ID stability, auction + area gate + last-position anchor</td><td></td><td></td><td class="n">0.27 – 0.63 (what remains: merge/split swaps)</td></tr>
+      <tr><td>ID stability, auction + area gate + last-position anchor</td><td></td><td></td><td class="n">0.27 – 0.63</td></tr>
+      <tr><td>ID stability, plus merge groups (velocity carried through a shared blob)</td><td></td><td></td><td class="n">0.25 – 0.41: in a 2D sim every overlap is a bump and the swimmer reverses inside the merge; the rule needs pass-overs, which need depth</td></tr>
     </tbody>
   </table>
   <pre>uv run python ecosim.py --out data/eco.mp4 --frames 450 --size 640x480 --um-per-px 3 --seed 1

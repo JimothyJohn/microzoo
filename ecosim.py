@@ -481,14 +481,22 @@ def render(
     polarity: str,
     rng: np.random.Generator,
     noise: float = 6.0,
+    blur_um: float = 0.0,
 ) -> np.ndarray:
-    """One BGR frame of the world as it stands."""
+    """One BGR frame of the world as it stands.
+
+    ``blur_um`` is the optics' resolution floor as a full width at half maximum
+    in micrometres (the TOMLOV sits at 10 to 20 µm; a 4x objective on a
+    global-shutter sensor resolves finer than a pixel at 1.5 µm/px, so 0). It is
+    applied before the sensor noise, as optics come before the sensor.
+    """
     if polarity not in POLARITIES:
         raise ValueError(f"polarity must be one of {POLARITIES}, got {polarity!r}")
+    if blur_um < 0:
+        raise ValueError(f"blur_um must be >= 0, got {blur_um}")
     w, h = size
     bright = polarity == "brightfield"
     img = np.full((h, w), 225.0 if bright else 18.0, np.float32)
-    img += rng.normal(0, noise, img.shape).astype(np.float32)
     order = sorted(world.orgs, key=lambda o: world.species[o.species].motion.kind != "passive")
     for o in order:
         if not o.visible:
@@ -516,6 +524,10 @@ def render(
         else:
             sig, _ = render_sprite(spec, st, rng)
         composite(img, sig, o.pos[0] / um_per_px, o.pos[1] / um_per_px, polarity)
+    sigma_px = blur_um / um_per_px / 2.355  # FWHM -> sigma
+    if sigma_px > 0.05:
+        img = cv2.GaussianBlur(img, (0, 0), sigma_px)
+    img += rng.normal(0, noise, img.shape).astype(np.float32)
     gray = np.clip(img, 0, 255).astype(np.uint8)
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 
@@ -531,6 +543,7 @@ def write_clip(
     seed: int,
     noise: float = 6.0,
     sidecar: dict | None = None,
+    blur_um: float = 0.0,
 ) -> dict[str, Path]:
     """Run ``world`` for ``frames`` and encode it; returns the paths written."""
     w, h = size
@@ -547,7 +560,7 @@ def write_clip(
         cw.writerow(["frame", "obj_id", "x", "y", "species", "state", "heading", "length_px"])
         for _ in range(frames):
             cw.writerows(world.truth_rows(um_per_px))
-            wr.write(render(world, size, um_per_px, polarity, rng, noise=noise))
+            wr.write(render(world, size, um_per_px, polarity, rng, noise=noise, blur_um=blur_um))
             world.step(dt)
     wr.release()
     _SPRITE_CACHE.clear()
@@ -599,6 +612,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--drift", type=float, default=25.0, help="convection speed, µm/s")
     p.add_argument("--drift-period", type=float, default=90.0, help="current rotation period, s")
     p.add_argument("--noise", type=float, default=6.0, help="sensor noise sigma")
+    p.add_argument(
+        "--blur-um",
+        type=float,
+        default=0.0,
+        help="optical resolution floor, FWHM in µm (TOMLOV: 10-20; AR0234 at 4x: 0)",
+    )
     p.add_argument("--params", type=Path, help="JSON overriding species.py numbers")
     p.add_argument("--dump-params", action="store_true", help="print the species table and exit")
     p.add_argument("--seed", type=int, default=0)
@@ -618,7 +637,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.out is None:
         print("ecosim: --out is required (or --dump-params)", file=sys.stderr)
         return 2
-    if a.frames < 1 or a.fps <= 0 or a.um_per_px <= 0:
+    if a.frames < 1 or a.fps <= 0 or a.um_per_px <= 0 or a.blur_um < 0:
         print("ecosim: frames >= 1, fps > 0, um-per-px > 0", file=sys.stderr)
         return 2
     try:
@@ -646,10 +665,22 @@ def main(argv: list[str] | None = None) -> int:
         "cast": cast,
         "drift_um_s": a.drift,
         "drift_period_s": a.drift_period,
+        "blur_um": a.blur_um,
+        "noise": a.noise,
         "species": json.loads(dump_params({k: species[k] for k in cast})),
     }
     paths = write_clip(
-        a.out, world, a.frames, a.fps, a.size, a.um_per_px, a.polarity, a.seed, a.noise, sidecar
+        a.out,
+        world,
+        a.frames,
+        a.fps,
+        a.size,
+        a.um_per_px,
+        a.polarity,
+        a.seed,
+        a.noise,
+        sidecar,
+        blur_um=a.blur_um,
     )
     kinds = {k: sum(1 for e in world.events if e.kind == k) for k in EVENT_KINDS}
     alive = sum(1 for o in world.orgs if o.visible and o.species != "debris")
