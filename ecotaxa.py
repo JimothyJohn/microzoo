@@ -141,6 +141,11 @@ TAXON_FOR_SPECIES: dict[str, str] = {
     "nematode": "Nematoda",
     "tardigrade": "Tardigrada",
     "gastrotrich": "Gastrotricha",
+    # No genus entry on EcoTaxa: nearest verified rank.
+    "halteria": "Ciliophora",
+    "blepharisma": "Ciliophora",
+    "diatom": "Bacillariophyta<Chromista",
+    "planaria": "Tricladida",
 }
 
 

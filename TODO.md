@@ -1,5 +1,36 @@
 # TODO
 
+## Hand-offs for Nick
+
+- [ ] 2026-10-26 — **Promote dev → master so the playground and docs/CNAME publish** — GitHub Pages serves master:/docs. The playground (docs/playground.html), the index card and docs/CNAME (microzoo.advin.io) sit on dev once the playground PR merges; nothing is live until master moves.
+  needs: the playground PR merged into dev
+  result: https://jimothyjohn.github.io/microzoo/playground.html is live and Pages knows the custom domain file
+  est: 5m
+  difficulty: low
+  id: promote-dev-playground
+  asked: 2026-10-26
+  by: playground session
+  notes: your merge, by hand (dev → master is never automated)
+- [ ] 2026-10-26 — **DNS: microzoo.advin.io → GitHub Pages** — Route 53 CNAME in the advin.io zone (Z039212425BG1MHVPYWDN) pointing at jimothyjohn.github.io. UPSERT, waits for INSYNC, verifies at the zone's own name server.
+  needs: aws CLI with Route 53 write access to advin.io
+  result: `dig microzoo.advin.io CNAME` answers jimothyjohn.github.io
+  est: 2m
+  difficulty: low
+  id: dns-microzoo-advin
+  asked: 2026-10-26
+  by: playground session
+  notes: `! ./scripts/dns-microzoo-advin.sh`
+- [ ] 2026-10-26 — **GitHub Pages custom domain + HTTPS** — sets the Pages cname to microzoo.advin.io through the API, then polls until GitHub has issued the certificate and switches https_enforced on (up to 30 min; re-run until it prints ok).
+  needs: DNS in place, docs/CNAME on master
+  result: https://microzoo.advin.io serves the site; the github.io URL redirects
+  est: 5m plus the certificate wait
+  difficulty: low
+  depends: dns-microzoo-advin, promote-dev-playground
+  id: pages-custom-domain
+  asked: 2026-10-26
+  by: playground session
+  notes: `! ./scripts/pages-custom-domain.sh`
+
 ## Open questions for Nick
 
 - [x] 2026-10-25 — **Slow or paused swimmers vanish from MOG2** — MOG2 absorbs a swimmer that stops or crawls into the background after ~`--history` frames (a sessile rotifer or a resting Paramecium drops out of detection). Fine for G1; the v3 event rules (Stentor contraction, anchored rotifers) need sessile blobs to persist.
@@ -38,7 +69,7 @@
   depends: tracker-id-stability-on-ecosim-clips
   answer: carry velocity through the merge (predict both, split by extrapolation)
   notes: done 2026-10-26 (`--merge-ratio 1.5`, default; 0 disables). A matched blob ≥1.5× a track's own area with another track's extrapolation inside it forms a merge group; members coast on their own velocity, are not corrected with the shared centroid, and the split is assigned on the extrapolations. Clean on a head-on crossing (unit test). On the ecosim scenario it does not help (0.25–0.41): the 2D sim makes every overlap a bump, the Paramecium reverses inside the merge, and extrapolation picks the wrong body. Needs depth in the sim to measure; next item.
-- [ ] 2026-10-26 — **Give ecosim depth so swimmers can pass over each other** — the chamber is 100–200 µm deep and bodies are 50 µm thick, so most real crossings are pass-overs at different Z with no contact, which is exactly the case the merge rule in track.py is built for. The 2D sim turns every overlap into a bump (avoiding reaction), so the rule cannot be measured and the ID-stability number is pessimistic.
+- [x] 2026-10-26 — **Give ecosim depth so swimmers can pass over each other** — the chamber is 100–200 µm deep and bodies are 50 µm thick, so most real crossings are pass-overs at different Z with no contact, which is exactly the case the merge rule in track.py is built for. The 2D sim turns every overlap into a bump (avoiding reaction), so the rule cannot be measured and the ID-stability number is pessimistic.
   needs: a Z coordinate per organism (uniform in the chamber depth, slow random walk), bumps only when |dz| < body thickness, and either no visual change or a mild defocus blur with |z − focal plane| (the focal-sweep 3D route in CLAUDE.md wants that anyway)
   result: ecosim clips with true pass-overs; `test_tracker_follows_every_paramecium_through_the_debris` measures the merge rule instead of the bump case; a defocus knob the autofocus work (v2) can reuse
   options: Z for collisions only, no visual effect | Z with defocus blur (sigma from |dz|, depth of field 10–50 µm per CLAUDE.md) | leave 2D and measure the merge rule on real footage at G1
@@ -46,6 +77,7 @@
   difficulty: med
   depends: id-swaps-when-two-swimmers-merge-into-one-blob
   answer: Z with defocus blur (sigma from abs(dz), depth of field 10–50 µm per CLAUDE.md)
+  notes: done 2026-10-26 (PR #12). `--depth 150 --dof 30 --focus depth/2`; Z uniform at spawn, 20 µm/√s random walk, sessile/anchored fixed, caught prey rides its predator. Bumps and strikes only when |dz| < mean thickness (new `Species.thick`, Paramecium ~51 µm). Per-body Gaussian defocus 0.1 µm sigma per µm beyond the DoF, far bodies drawn first; truth CSV gains `z_um`. `--depth 0` is bit-for-bit the old sim. Stability on the pinned seed 11 went 0.25–0.41 → 0.39–0.82 (floor raised 0.2 → 0.3); seeds 12–13 did not improve, so no trend claimed. New measurable: merge-group tracks coast ~45 µm off during long stacked pass-overs (median error 2.3 → 4.1 px on stacked frames), the next tracker number to attack.
 - [x] 2026-10-25 — **Hardware path for G2: A or B?** — **A** Pi 5 + Pi Global Shutter Camera first (~$898 through G4; Pi 5 8 GB is $175 today and the GS camera is out of stock at 3 of 4 US resellers) or **B** USB 3 Arducam AR0234 C-mount into the Mac Studio for G2–G4, Pi bought at G5 (~$672 now, ~$980 after the Pi). `hardware/SOURCING.md` §4 recommends B. Not due until G2 passes; it decides $225 today and whether roadmap v1 "Pi capture" runs before or after v2–v3.
   needs: your pick, A or B
   result: bom.csv path column filtered, HARDWARE.md §9 updated, roadmap order in CLAUDE.md adjusted if B
