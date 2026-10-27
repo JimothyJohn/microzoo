@@ -90,3 +90,13 @@
   by: hardware BOM session
   answer: Focus on a used eBay option, I have a good scanner to look for good deals on nice equipment. Especially if it has a great resale value then I'll spend whatever I want on it.
   notes: done 2026-10-26. Neither A nor B: Path B's order (Studio through G4, Pi at G5) with the scope and camera sourced used via the scanner and resale value as the price rule. SOURCING.md §1/§4 rewritten with an eBay watchlist (BX/Eclipse stands, Basler/FLIR/Daheng USB3 cameras, what to check before paying), HARDWARE.md §2/§3/§9/§10 updated, bom.csv path column now both/floor/watch/pi with two watch rows, index.html cards, CLAUDE.md sourcing line. Camera sensor/SDK facts are flagged unverified in §6.
+- [ ] 2026-10-26 — **Label v4 crops on EcoTaxa instead of a home-grown tool?** — `ecotaxa.py export` now turns any tracked clip into an EcoTaxa import bundle (one object per track, several frames per object, the PlanktoScope morphometrics plus speed/turn/tortuosity columns). EcoTaxa gives a labelling UI, a random-forest classifier trained on those columns, and 700 M objects of prior art for free; the cost is an account (manual approval by the Villefranche team) and a public-or-private project of our clips. CLAUDE.md v4 says "YOLO fine-tune on own crops (~500 labeled)": the crops and labels could come out of EcoTaxa's export instead of a local labelling pass.
+  needs: a yes/no on creating a microzoo project on ecotaxa.obs-vlfr.fr once G1 footage exists (register at /gui/register; manual approval), and whether the project is public
+  result: v4 labelling happens in EcoTaxa; `ecotaxa.py` gains a `push` (API import) and an `annotations` (export labels back to the sidecar/track CSV) command; the ecosim bundles become the dry run
+  options: yes, public project (shares the footage) | yes, private project | no, label locally (CVAT or a small Fable tool) and keep ecotaxa.py as an export only
+  est: 2h for push + annotations once the account exists
+  difficulty: low
+  depends: G1 (real footage worth labelling)
+  id: label-v4-on-ecotaxa
+  asked: 2026-10-26
+  by: ecotaxa bridge session

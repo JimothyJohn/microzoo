@@ -1,0 +1,1499 @@
+{
+ "project": 2748,
+ "title": "Planktoscope Pollina 2020 20microns",
+ "api": "https://ecotaxa.obs-vlfr.fr",
+ "status_filter": "V",
+ "objects": 5806,
+ "project_counts": {
+  "nb_validated": 5806,
+  "nb_dubious": 6175,
+  "nb_predicted": 60350,
+  "nb_unclassified": 0
+ },
+ "pixel_um": [
+  1.19
+ ],
+ "features_in": "um where pixel_um is known, else px",
+ "taxa": {
+  "Chaetoceros<Chaetocerotaceae": {
+   "taxon_id": 28257,
+   "lineage": "Biota > Chromista > Heterokontophyta > Bacillariophytina > Bacillariophyceae > Coscinodiscophycidae > Chaetocerotanae > Chaetocerotanae incertae sedis > Chaetocerotaceae > Chaetoceros",
+   "n": 622,
+   "equivalent_diameter": {
+    "p10": 74.455,
+    "p50": 119.887,
+    "p90": 157.526
+   },
+   "major": {
+    "p10": 221.087,
+    "p50": 325.826,
+    "p90": 447.86
+   },
+   "minor": {
+    "p10": 85.721,
+    "p50": 160.753,
+    "p90": 252.425
+   },
+   "elongation": {
+    "p10": 1.242,
+    "p50": 1.924,
+    "p90": 3.776
+   },
+   "circ.": {
+    "p10": 0.009,
+    "p50": 0.015,
+    "p90": 0.036
+   },
+   "solidity": {
+    "p10": 0.151,
+    "p50": 0.221,
+    "p90": 0.343
+   },
+   "%area": {
+    "p10": 0.027,
+    "p50": 0.114,
+    "p90": 0.197
+   }
+  },
+  "multiple<other": {
+   "taxon_id": 85079,
+   "lineage": "Biota > other > multiple",
+   "n": 606,
+   "equivalent_diameter": {
+    "p10": 169.981,
+    "p50": 227.85,
+    "p90": 358.542
+   },
+   "major": {
+    "p10": 321.773,
+    "p50": 542.893,
+    "p90": 906.888
+   },
+   "minor": {
+    "p10": 175.412,
+    "p50": 258.263,
+    "p90": 462.655
+   },
+   "elongation": {
+    "p10": 1.317,
+    "p50": 1.887,
+    "p90": 3.126
+   },
+   "circ.": {
+    "p10": 0.003,
+    "p50": 0.007,
+    "p90": 0.015
+   },
+   "solidity": {
+    "p10": 0.225,
+    "p50": 0.365,
+    "p90": 0.52
+   },
+   "%area": {
+    "p10": 0.116,
+    "p50": 0.19,
+    "p90": 0.295
+   }
+  },
+  "Asterionellopsis": {
+   "taxon_id": 28207,
+   "lineage": "Biota > Chromista > Heterokontophyta > Bacillariophytina > Bacillariophyceae > Fragilariophycidae > Fragilariophycanae > Fragilariales > Fragilariaceae > Asterionellopsis",
+   "n": 581,
+   "equivalent_diameter": {
+    "p10": 62.68,
+    "p50": 88.491,
+    "p90": 129.534
+   },
+   "major": {
+    "p10": 161.073,
+    "p50": 228.827,
+    "p90": 335.759
+   },
+   "minor": {
+    "p10": 84.076,
+    "p50": 140.703,
+    "p90": 212.126
+   },
+   "elongation": {
+    "p10": 1.193,
+    "p50": 1.615,
+    "p90": 2.415
+   },
+   "circ.": {
+    "p10": 0.014,
+    "p50": 0.024,
+    "p90": 0.044
+   },
+   "solidity": {
+    "p10": 0.195,
+    "p50": 0.248,
+    "p90": 0.315
+   },
+   "%area": {
+    "p10": 0.036,
+    "p50": 0.086,
+    "p90": 0.158
+   }
+  },
+  "chainthin": {
+   "taxon_id": 85352,
+   "lineage": "Biota > Chromista > Heterokontophyta > Bacillariophytina > Bacillariophyceae > Fragilariophycidae > Fragilariophycanae > Fragilariales > Fragilariaceae > Diatoma > chainthin",
+   "n": 517,
+   "equivalent_diameter": {
+    "p10": 52.04,
+    "p50": 59.84,
+    "p90": 71.553
+   },
+   "major": {
+    "p10": 120.745,
+    "p50": 155.349,
+    "p90": 227.484
+   },
+   "minor": {
+    "p10": 23.132,
+    "p50": 26.788,
+    "p90": 30.349
+   },
+   "elongation": {
+    "p10": 4.429,
+    "p50": 5.82,
+    "p90": 8.942
+   },
+   "circ.": {
+    "p10": 0.089,
+    "p50": 0.139,
+    "p90": 0.217
+   },
+   "solidity": {
+    "p10": 0.651,
+    "p50": 0.742,
+    "p90": 0.835
+   },
+   "%area": {
+    "p10": 0.012,
+    "p50": 0.036,
+    "p90": 0.09
+   }
+  },
+  "nauplii<Copepoda": {
+   "taxon_id": 92767,
+   "lineage": "Biota > Animalia > Arthropoda > Crustacea > Multicrustacea > Copepoda > nauplii",
+   "n": 424,
+   "equivalent_diameter": {
+    "p10": 169.282,
+    "p50": 219.56,
+    "p90": 283.583
+   },
+   "major": {
+    "p10": 256.113,
+    "p50": 347.825,
+    "p90": 467.205
+   },
+   "minor": {
+    "p10": 170.633,
+    "p50": 259.675,
+    "p90": 361.457
+   },
+   "elongation": {
+    "p10": 1.085,
+    "p50": 1.345,
+    "p90": 1.857
+   },
+   "circ.": {
+    "p10": 0.005,
+    "p50": 0.009,
+    "p90": 0.022
+   },
+   "solidity": {
+    "p10": 0.269,
+    "p50": 0.38,
+    "p90": 0.519
+   },
+   "%area": {
+    "p10": 0.082,
+    "p50": 0.145,
+    "p90": 0.213
+   }
+  },
+  "dinoflagellate-tmp-i": {
+   "taxon_id": 92953,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Myzozoa > Dinozoa > Dinoflagellata > Dinophyceae > dinoflagellate-tmp-i",
+   "n": 333,
+   "equivalent_diameter": {
+    "p10": 94.739,
+    "p50": 103.55,
+    "p90": 113.12
+   },
+   "major": {
+    "p10": 114.313,
+    "p50": 129.401,
+    "p90": 145.61
+   },
+   "minor": {
+    "p10": 83.229,
+    "p50": 90.998,
+    "p90": 105.326
+   },
+   "elongation": {
+    "p10": 1.133,
+    "p50": 1.434,
+    "p90": 1.634
+   },
+   "circ.": {
+    "p10": 0.073,
+    "p50": 0.128,
+    "p90": 0.193
+   },
+   "solidity": {
+    "p10": 0.795,
+    "p50": 0.861,
+    "p90": 0.898
+   },
+   "%area": {
+    "p10": 0.047,
+    "p50": 0.067,
+    "p90": 0.109
+   }
+  },
+  "Guinardia": {
+   "taxon_id": 28299,
+   "lineage": "Biota > Chromista > Heterokontophyta > Bacillariophytina > Bacillariophyceae > Coscinodiscophycidae > Rhizosolenianae > Rhizosoleniales > Rhizosoleniaceae > Guinardia",
+   "n": 309,
+   "equivalent_diameter": {
+    "p10": 124.508,
+    "p50": 137.606,
+    "p90": 157.221
+   },
+   "major": {
+    "p10": 304.823,
+    "p50": 352.55,
+    "p90": 415.33
+   },
+   "minor": {
+    "p10": 72.693,
+    "p50": 87.928,
+    "p90": 115.691
+   },
+   "elongation": {
+    "p10": 3.068,
+    "p50": 4.012,
+    "p90": 4.792
+   },
+   "circ.": {
+    "p10": 0.016,
+    "p50": 0.026,
+    "p90": 0.039
+   },
+   "solidity": {
+    "p10": 0.486,
+    "p50": 0.593,
+    "p90": 0.687
+   },
+   "%area": {
+    "p10": 0.165,
+    "p50": 0.228,
+    "p90": 0.306
+   }
+  },
+  "Bacillariophyta<Chromista": {
+   "taxon_id": 11816,
+   "lineage": "Biota > Chromista > Bacillariophyta",
+   "n": 302,
+   "equivalent_diameter": {
+    "p10": 78.889,
+    "p50": 96.076,
+    "p90": 150.553
+   },
+   "major": {
+    "p10": 130.211,
+    "p50": 196.175,
+    "p90": 415.277
+   },
+   "minor": {
+    "p10": 58.098,
+    "p50": 87.402,
+    "p90": 159.303
+   },
+   "elongation": {
+    "p10": 1.369,
+    "p50": 2.296,
+    "p90": 4.026
+   },
+   "circ.": {
+    "p10": 0.012,
+    "p50": 0.038,
+    "p90": 0.071
+   },
+   "solidity": {
+    "p10": 0.289,
+    "p50": 0.476,
+    "p90": 0.59
+   },
+   "%area": {
+    "p10": 0.047,
+    "p50": 0.103,
+    "p90": 0.202
+   }
+  },
+  "Bacteriastrum<Chaetocerotaceae": {
+   "taxon_id": 28217,
+   "lineage": "Biota > Chromista > Heterokontophyta > Bacillariophytina > Bacillariophyceae > Coscinodiscophycidae > Chaetocerotanae > Chaetocerotanae incertae sedis > Chaetocerotaceae > Bacteriastrum",
+   "n": 302,
+   "equivalent_diameter": {
+    "p10": 115.838,
+    "p50": 144.867,
+    "p90": 189.515
+   },
+   "major": {
+    "p10": 174.122,
+    "p50": 217.249,
+    "p90": 463.452
+   },
+   "minor": {
+    "p10": 128.019,
+    "p50": 162.255,
+    "p90": 203.334
+   },
+   "elongation": {
+    "p10": 1.06,
+    "p50": 1.296,
+    "p90": 3.073
+   },
+   "circ.": {
+    "p10": 0.009,
+    "p50": 0.018,
+    "p90": 0.028
+   },
+   "solidity": {
+    "p10": 0.361,
+    "p50": 0.441,
+    "p90": 0.52
+   },
+   "%area": {
+    "p10": 0.054,
+    "p50": 0.123,
+    "p90": 0.196
+   }
+  },
+  "Copepoda<Multicrustacea": {
+   "taxon_id": 25828,
+   "lineage": "Biota > Animalia > Arthropoda > Crustacea > Multicrustacea > Copepoda",
+   "n": 207,
+   "equivalent_diameter": {
+    "p10": 273.358,
+    "p50": 336.953,
+    "p90": 424.657
+   },
+   "major": {
+    "p10": 531.095,
+    "p50": 688.603,
+    "p90": 961.395
+   },
+   "minor": {
+    "p10": 234.36,
+    "p50": 370.517,
+    "p90": 654.434
+   },
+   "elongation": {
+    "p10": 1.214,
+    "p50": 1.75,
+    "p90": 2.742
+   },
+   "circ.": {
+    "p10": 0.003,
+    "p50": 0.005,
+    "p90": 0.01
+   },
+   "solidity": {
+    "p10": 0.231,
+    "p50": 0.327,
+    "p90": 0.489
+   },
+   "%area": {
+    "p10": 0.109,
+    "p50": 0.15,
+    "p90": 0.21
+   }
+  },
+  "detritus<not-living": {
+   "taxon_id": 84963,
+   "lineage": "not-living > detritus",
+   "n": 149,
+   "equivalent_diameter": {
+    "p10": 83.552,
+    "p50": 104.262,
+    "p90": 119.091
+   },
+   "major": {
+    "p10": 145.28,
+    "p50": 184.7,
+    "p90": 241.392
+   },
+   "minor": {
+    "p10": 84.97,
+    "p50": 123.115,
+    "p90": 153.117
+   },
+   "elongation": {
+    "p10": 1.184,
+    "p50": 1.512,
+    "p90": 2.266
+   },
+   "circ.": {
+    "p10": 0.018,
+    "p50": 0.032,
+    "p90": 0.062
+   },
+   "solidity": {
+    "p10": 0.377,
+    "p50": 0.508,
+    "p90": 0.676
+   },
+   "%area": {
+    "p10": 0.066,
+    "p50": 0.155,
+    "p90": 0.37
+   }
+  },
+  "Acantharea": {
+   "taxon_id": 11762,
+   "lineage": "Biota > Chromista > Harosa > Rhizaria > Retaria > Acantharea",
+   "n": 138,
+   "equivalent_diameter": {
+    "p10": 87.944,
+    "p50": 109.438,
+    "p90": 171.622
+   },
+   "major": {
+    "p10": 113.378,
+    "p50": 174.236,
+    "p90": 259.579
+   },
+   "minor": {
+    "p10": 69.473,
+    "p50": 107.249,
+    "p90": 158.646
+   },
+   "elongation": {
+    "p10": 1.075,
+    "p50": 1.418,
+    "p90": 2.533
+   },
+   "circ.": {
+    "p10": 0.015,
+    "p50": 0.051,
+    "p90": 0.089
+   },
+   "solidity": {
+    "p10": 0.444,
+    "p50": 0.563,
+    "p90": 0.69
+   },
+   "%area": {
+    "p10": 0.057,
+    "p50": 0.085,
+    "p90": 0.162
+   }
+  },
+  "Undellidae": {
+   "taxon_id": 18597,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Ciliophora > Intramacronucleata > Oligotrichea > Oligotrichia > Choreotrichida > Tintinnina > Undellidae",
+   "n": 138,
+   "equivalent_diameter": {
+    "p10": 96.32,
+    "p50": 133.171,
+    "p90": 149.115
+   },
+   "major": {
+    "p10": 157.383,
+    "p50": 186.134,
+    "p90": 203.709
+   },
+   "minor": {
+    "p10": 124.702,
+    "p50": 138.136,
+    "p90": 147.134
+   },
+   "elongation": {
+    "p10": 1.152,
+    "p50": 1.342,
+    "p90": 1.547
+   },
+   "circ.": {
+    "p10": 0.015,
+    "p50": 0.032,
+    "p90": 0.074
+   },
+   "solidity": {
+    "p10": 0.482,
+    "p50": 0.609,
+    "p90": 0.746
+   },
+   "%area": {
+    "p10": 0.097,
+    "p50": 0.208,
+    "p90": 0.42
+   }
+  },
+  "Dinophyceae": {
+   "taxon_id": 11921,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Myzozoa > Dinozoa > Dinoflagellata > Dinophyceae",
+   "n": 133,
+   "equivalent_diameter": {
+    "p10": 95.08,
+    "p50": 110.752,
+    "p90": 139.656
+   },
+   "major": {
+    "p10": 116.841,
+    "p50": 153.811,
+    "p90": 355.822
+   },
+   "minor": {
+    "p10": 87.143,
+    "p50": 102.713,
+    "p90": 121.665
+   },
+   "elongation": {
+    "p10": 1.12,
+    "p50": 1.558,
+    "p90": 3.377
+   },
+   "circ.": {
+    "p10": 0.017,
+    "p50": 0.072,
+    "p90": 0.136
+   },
+   "solidity": {
+    "p10": 0.41,
+    "p50": 0.705,
+    "p90": 0.821
+   },
+   "%area": {
+    "p10": 0.048,
+    "p50": 0.084,
+    "p90": 0.184
+   }
+  },
+  "Neoceratium furca<Neoceratium": {
+   "taxon_id": 31594,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Myzozoa > Dinozoa > Dinoflagellata > Dinophyceae > Peridiniphycidae > Gonyaulacales > Ceratiaceae > Neoceratium > Neoceratium furca",
+   "n": 103,
+   "equivalent_diameter": {
+    "p10": 115.524,
+    "p50": 129.325,
+    "p90": 140.962
+   },
+   "major": {
+    "p10": 313.297,
+    "p50": 358.603,
+    "p90": 414.391
+   },
+   "minor": {
+    "p10": 55.347,
+    "p50": 67.548,
+    "p90": 77.603
+   },
+   "elongation": {
+    "p10": 4.39,
+    "p50": 5.371,
+    "p90": 7.068
+   },
+   "circ.": {
+    "p10": 0.015,
+    "p50": 0.029,
+    "p90": 0.07
+   },
+   "solidity": {
+    "p10": 0.482,
+    "p50": 0.586,
+    "p90": 0.684
+   },
+   "%area": {
+    "p10": 0.045,
+    "p50": 0.104,
+    "p90": 0.186
+   }
+  },
+  "Neoceratium": {
+   "taxon_id": 18758,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Myzozoa > Dinozoa > Dinoflagellata > Dinophyceae > Peridiniphycidae > Gonyaulacales > Ceratiaceae > Neoceratium",
+   "n": 90,
+   "equivalent_diameter": {
+    "p10": 132.65,
+    "p50": 160.637,
+    "p90": 205.166
+   },
+   "major": {
+    "p10": 272.865,
+    "p50": 393.939,
+    "p90": 698.06
+   },
+   "minor": {
+    "p10": 137.148,
+    "p50": 216.07,
+    "p90": 272.254
+   },
+   "elongation": {
+    "p10": 1.261,
+    "p50": 1.767,
+    "p90": 3.823
+   },
+   "circ.": {
+    "p10": 0.007,
+    "p50": 0.012,
+    "p90": 0.029
+   },
+   "solidity": {
+    "p10": 0.232,
+    "p50": 0.299,
+    "p90": 0.439
+   },
+   "%area": {
+    "p10": 0.071,
+    "p50": 0.123,
+    "p90": 0.18
+   }
+  },
+  "chain<pennate": {
+   "taxon_id": 85083,
+   "lineage": "Biota > Chromista > Bacillariophyta > pennate > chain",
+   "n": 90,
+   "equivalent_diameter": {
+    "p10": 51.528,
+    "p50": 62.888,
+    "p90": 73.043
+   },
+   "major": {
+    "p10": 187.525,
+    "p50": 277.07,
+    "p90": 370.514
+   },
+   "minor": {
+    "p10": 17.322,
+    "p50": 20.465,
+    "p90": 25.368
+   },
+   "elongation": {
+    "p10": 9.742,
+    "p50": 13.1,
+    "p90": 19.154
+   },
+   "circ.": {
+    "p10": 0.03,
+    "p50": 0.06,
+    "p90": 0.101
+   },
+   "solidity": {
+    "p10": 0.491,
+    "p50": 0.627,
+    "p90": 0.735
+   },
+   "%area": {
+    "p10": 0.0,
+    "p50": 0.019,
+    "p90": 0.059
+   }
+  },
+  "Coscinodiscophytina": {
+   "taxon_id": 13459,
+   "lineage": "Biota > Chromista > Bacillariophyta > Coscinodiscophytina",
+   "n": 76,
+   "equivalent_diameter": {
+    "p10": 155.19,
+    "p50": 184.135,
+    "p90": 244.544
+   },
+   "major": {
+    "p10": 170.809,
+    "p50": 199.463,
+    "p90": 282.002
+   },
+   "minor": {
+    "p10": 161.507,
+    "p50": 187.964,
+    "p90": 251.321
+   },
+   "elongation": {
+    "p10": 1.022,
+    "p50": 1.058,
+    "p90": 1.285
+   },
+   "circ.": {
+    "p10": 0.012,
+    "p50": 0.028,
+    "p90": 0.071
+   },
+   "solidity": {
+    "p10": 0.708,
+    "p50": 0.812,
+    "p90": 0.896
+   },
+   "%area": {
+    "p10": 0.063,
+    "p50": 0.124,
+    "p90": 0.216
+   }
+  },
+  "t012": {
+   "taxon_id": 85137,
+   "lineage": "temporary > t012",
+   "n": 66,
+   "equivalent_diameter": {
+    "p10": 121.941,
+    "p50": 132.534,
+    "p90": 147.222
+   },
+   "major": {
+    "p10": 204.396,
+    "p50": 239.945,
+    "p90": 286.6
+   },
+   "minor": {
+    "p10": 140.768,
+    "p50": 161.259,
+    "p90": 186.028
+   },
+   "elongation": {
+    "p10": 1.225,
+    "p50": 1.444,
+    "p90": 2.014
+   },
+   "circ.": {
+    "p10": 0.012,
+    "p50": 0.019,
+    "p90": 0.032
+   },
+   "solidity": {
+    "p10": 0.28,
+    "p50": 0.338,
+    "p90": 0.404
+   },
+   "%area": {
+    "p10": 0.08,
+    "p50": 0.133,
+    "p90": 0.174
+   }
+  },
+  "Neoceratium fusus<Neoceratium": {
+   "taxon_id": 31593,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Myzozoa > Dinozoa > Dinoflagellata > Dinophyceae > Peridiniphycidae > Gonyaulacales > Ceratiaceae > Neoceratium > Neoceratium fusus",
+   "n": 62,
+   "equivalent_diameter": {
+    "p10": 108.432,
+    "p50": 123.535,
+    "p90": 135.816
+   },
+   "major": {
+    "p10": 549.969,
+    "p50": 648.671,
+    "p90": 727.212
+   },
+   "minor": {
+    "p10": 29.864,
+    "p50": 39.09,
+    "p90": 54.315
+   },
+   "elongation": {
+    "p10": 12.183,
+    "p50": 16.166,
+    "p90": 22.91
+   },
+   "circ.": {
+    "p10": 0.009,
+    "p50": 0.034,
+    "p90": 0.062
+   },
+   "solidity": {
+    "p10": 0.338,
+    "p50": 0.521,
+    "p90": 0.642
+   },
+   "%area": {
+    "p10": 0.016,
+    "p50": 0.04,
+    "p90": 0.109
+   }
+  },
+  "Thalassionema": {
+   "taxon_id": 28114,
+   "lineage": "Biota > Chromista > Heterokontophyta > Bacillariophytina > Bacillariophyceae > Fragilariophycidae > Fragilariophycanae > Thalassionematales > Thalassionemataceae > Thalassionema",
+   "n": 62,
+   "equivalent_diameter": {
+    "p10": 88.293,
+    "p50": 125.324,
+    "p90": 174.896
+   },
+   "major": {
+    "p10": 329.382,
+    "p50": 442.639,
+    "p90": 691.666
+   },
+   "minor": {
+    "p10": 185.032,
+    "p50": 276.007,
+    "p90": 361.241
+   },
+   "elongation": {
+    "p10": 1.153,
+    "p50": 1.598,
+    "p90": 2.589
+   },
+   "circ.": {
+    "p10": 0.003,
+    "p50": 0.006,
+    "p90": 0.011
+   },
+   "solidity": {
+    "p10": 0.097,
+    "p50": 0.164,
+    "p90": 0.217
+   },
+   "%area": {
+    "p10": 0.031,
+    "p50": 0.059,
+    "p90": 0.118
+   }
+  },
+  "Rhizosolenia": {
+   "taxon_id": 28296,
+   "lineage": "Biota > Chromista > Heterokontophyta > Bacillariophytina > Bacillariophyceae > Coscinodiscophycidae > Rhizosolenianae > Rhizosoleniales > Rhizosoleniaceae > Rhizosolenia",
+   "n": 60,
+   "equivalent_diameter": {
+    "p10": 113.298,
+    "p50": 162.705,
+    "p90": 219.021
+   },
+   "major": {
+    "p10": 360.093,
+    "p50": 758.373,
+    "p90": 1113.085
+   },
+   "minor": {
+    "p10": 36.3,
+    "p50": 57.831,
+    "p90": 70.62
+   },
+   "elongation": {
+    "p10": 7.594,
+    "p50": 12.977,
+    "p90": 19.716
+   },
+   "circ.": {
+    "p10": 0.007,
+    "p50": 0.017,
+    "p90": 0.052
+   },
+   "solidity": {
+    "p10": 0.427,
+    "p50": 0.577,
+    "p90": 0.716
+   },
+   "%area": {
+    "p10": 0.07,
+    "p50": 0.176,
+    "p90": 0.311
+   }
+  },
+  "Dictyocysta": {
+   "taxon_id": 31192,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Ciliophora > Intramacronucleata > Oligotrichea > Oligotrichia > Choreotrichida > Tintinnina > Dictyocystidae > Dictyocysta",
+   "n": 52,
+   "equivalent_diameter": {
+    "p10": 94.833,
+    "p50": 101.816,
+    "p90": 108.487
+   },
+   "major": {
+    "p10": 126.957,
+    "p50": 137.27,
+    "p90": 146.762
+   },
+   "minor": {
+    "p10": 93.647,
+    "p50": 99.25,
+    "p90": 106.238
+   },
+   "elongation": {
+    "p10": 1.258,
+    "p50": 1.381,
+    "p90": 1.485
+   },
+   "circ.": {
+    "p10": 0.03,
+    "p50": 0.046,
+    "p90": 0.099
+   },
+   "solidity": {
+    "p10": 0.598,
+    "p50": 0.732,
+    "p90": 0.824
+   },
+   "%area": {
+    "p10": 0.104,
+    "p50": 0.152,
+    "p90": 0.28
+   }
+  },
+  "Protoperidinium": {
+   "taxon_id": 31853,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Myzozoa > Dinozoa > Dinoflagellata > Dinophyceae > Peridiniphycidae > Peridiniales > Protoperidiniaceae > Protoperidinium",
+   "n": 43,
+   "equivalent_diameter": {
+    "p10": 154.927,
+    "p50": 179.193,
+    "p90": 201.326
+   },
+   "major": {
+    "p10": 207.981,
+    "p50": 237.98,
+    "p90": 257.726
+   },
+   "minor": {
+    "p10": 139.419,
+    "p50": 174.138,
+    "p90": 214.256
+   },
+   "elongation": {
+    "p10": 1.077,
+    "p50": 1.308,
+    "p90": 1.745
+   },
+   "circ.": {
+    "p10": 0.014,
+    "p50": 0.03,
+    "p90": 0.054
+   },
+   "solidity": {
+    "p10": 0.535,
+    "p50": 0.633,
+    "p90": 0.735
+   },
+   "%area": {
+    "p10": 0.07,
+    "p50": 0.11,
+    "p90": 0.188
+   }
+  },
+  "Rhabdonella": {
+   "taxon_id": 31203,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Ciliophora > Intramacronucleata > Oligotrichea > Oligotrichia > Choreotrichida > Tintinnina > Rhabdonellidae > Rhabdonella",
+   "n": 31,
+   "equivalent_diameter": {
+    "p10": 159.812,
+    "p50": 186.515,
+    "p90": 208.29
+   },
+   "major": {
+    "p10": 596.742,
+    "p50": 732.843,
+    "p90": 859.921
+   },
+   "minor": {
+    "p10": 99.373,
+    "p50": 108.821,
+    "p90": 132.832
+   },
+   "elongation": {
+    "p10": 4.866,
+    "p50": 6.225,
+    "p90": 7.793
+   },
+   "circ.": {
+    "p10": 0.005,
+    "p50": 0.01,
+    "p90": 0.018
+   },
+   "solidity": {
+    "p10": 0.321,
+    "p50": 0.46,
+    "p90": 0.544
+   },
+   "%area": {
+    "p10": 0.103,
+    "p50": 0.161,
+    "p90": 0.282
+   }
+  },
+  "Ciliophora": {
+   "taxon_id": 2250,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Ciliophora",
+   "n": 28,
+   "equivalent_diameter": {
+    "p10": 113.809,
+    "p50": 141.68,
+    "p90": 223.023
+   },
+   "major": {
+    "p10": 192.743,
+    "p50": 453.203,
+    "p90": 642.009
+   },
+   "minor": {
+    "p10": 46.321,
+    "p50": 80.665,
+    "p90": 219.59
+   },
+   "elongation": {
+    "p10": 1.3,
+    "p50": 5.727,
+    "p90": 13.005
+   },
+   "circ.": {
+    "p10": 0.012,
+    "p50": 0.025,
+    "p90": 0.07
+   },
+   "solidity": {
+    "p10": 0.402,
+    "p50": 0.598,
+    "p90": 0.8
+   },
+   "%area": {
+    "p10": 0.085,
+    "p50": 0.114,
+    "p90": 0.215
+   }
+  },
+  "Codonaria": {
+   "taxon_id": 31194,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Ciliophora > Intramacronucleata > Oligotrichea > Oligotrichia > Choreotrichida > Tintinnina > Codonellidae > Codonaria",
+   "n": 24,
+   "equivalent_diameter": {
+    "p10": 99.646,
+    "p50": 114.024,
+    "p90": 122.964
+   },
+   "major": {
+    "p10": 179.318,
+    "p50": 196.671,
+    "p90": 232.206
+   },
+   "minor": {
+    "p10": 121.226,
+    "p50": 134.863,
+    "p90": 156.829
+   },
+   "elongation": {
+    "p10": 1.206,
+    "p50": 1.488,
+    "p90": 1.664
+   },
+   "circ.": {
+    "p10": 0.017,
+    "p50": 0.021,
+    "p90": 0.028
+   },
+   "solidity": {
+    "p10": 0.341,
+    "p50": 0.463,
+    "p90": 0.552
+   },
+   "%area": {
+    "p10": 0.055,
+    "p50": 0.103,
+    "p90": 0.199
+   }
+  },
+  "Codonellopsis<Tintinnidiidae": {
+   "taxon_id": 31222,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Ciliophora > Intramacronucleata > Oligotrichea > Oligotrichia > Choreotrichida > Tintinnina > Tintinnidiidae > Codonellopsis",
+   "n": 21,
+   "equivalent_diameter": {
+    "p10": 103.846,
+    "p50": 121.86,
+    "p90": 144.87
+   },
+   "major": {
+    "p10": 227.125,
+    "p50": 242.111,
+    "p90": 285.56
+   },
+   "minor": {
+    "p10": 98.596,
+    "p50": 103.434,
+    "p90": 120.698
+   },
+   "elongation": {
+    "p10": 2.091,
+    "p50": 2.318,
+    "p90": 2.662
+   },
+   "circ.": {
+    "p10": 0.015,
+    "p50": 0.025,
+    "p90": 0.033
+   },
+   "solidity": {
+    "p10": 0.445,
+    "p50": 0.558,
+    "p90": 0.621
+   },
+   "%area": {
+    "p10": 0.143,
+    "p50": 0.201,
+    "p90": 0.302
+   }
+  },
+  "Peridiniales": {
+   "taxon_id": 13944,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Myzozoa > Dinozoa > Dinoflagellata > Dinophyceae > Peridiniphycidae > Peridiniales",
+   "n": 21,
+   "equivalent_diameter": {
+    "p10": 158.025,
+    "p50": 185.487,
+    "p90": 210.451
+   },
+   "major": {
+    "p10": 198.665,
+    "p50": 235.36,
+    "p90": 272.678
+   },
+   "minor": {
+    "p10": 133.801,
+    "p50": 168.424,
+    "p90": 196.616
+   },
+   "elongation": {
+    "p10": 1.239,
+    "p50": 1.394,
+    "p90": 1.7
+   },
+   "circ.": {
+    "p10": 0.016,
+    "p50": 0.028,
+    "p90": 0.049
+   },
+   "solidity": {
+    "p10": 0.684,
+    "p50": 0.79,
+    "p90": 0.839
+   },
+   "%area": {
+    "p10": 0.089,
+    "p50": 0.117,
+    "p90": 0.193
+   }
+  },
+  "Cyttarocylis": {
+   "taxon_id": 31190,
+   "lineage": "Biota > Chromista > Harosa > Alveolata > Ciliophora > Intramacronucleata > Oligotrichea > Oligotrichia > Choreotrichida > Tintinnina > Cyttarocylididae > Cyttarocylis",
+   "n": 15,
+   "equivalent_diameter": {
+    "p10": 171.164,
+    "p50": 193.834,
+    "p90": 260.715
+   },
+   "major": {
+    "p10": 231.887,
+    "p50": 256.807,
+    "p90": 347.148
+   },
+   "minor": {
+    "p10": 200.431,
+    "p50": 213.265,
+    "p90": 292.966
+   },
+   "elongation": {
+    "p10": 1.105,
+    "p50": 1.18,
+    "p90": 1.251
+   },
+   "circ.": {
+    "p10": 0.007,
+    "p50": 0.012,
+    "p90": 0.03
+   },
+   "solidity": {
+    "p10": 0.494,
+    "p50": 0.624,
+    "p90": 0.769
+   },
+   "%area": {
+    "p10": 0.145,
+    "p50": 0.235,
+    "p90": 0.372
+   }
+  },
+  "t009": {
+   "taxon_id": 85020,
+   "lineage": "temporary > t009",
+   "n": 14,
+   "equivalent_diameter": {
+    "p10": 78.251,
+    "p50": 103.196,
+    "p90": 115.537
+   },
+   "major": {
+    "p10": 251.727,
+    "p50": 311.697,
+    "p90": 374.263
+   },
+   "minor": {
+    "p10": 36.543,
+    "p50": 44.535,
+    "p90": 58.09
+   },
+   "elongation": {
+    "p10": 5.413,
+    "p50": 6.798,
+    "p90": 8.926
+   },
+   "circ.": {
+    "p10": 0.018,
+    "p50": 0.054,
+    "p90": 0.142
+   },
+   "solidity": {
+    "p10": 0.516,
+    "p50": 0.668,
+    "p90": 0.839
+   },
+   "%area": {
+    "p10": 0.048,
+    "p50": 0.085,
+    "p90": 0.133
+   }
+  },
+  "artefact": {
+   "taxon_id": 85008,
+   "lineage": "not-living > artefact",
+   "n": 13,
+   "equivalent_diameter": {
+    "p10": 270.603,
+    "p50": 346.997,
+    "p90": 398.519
+   },
+   "major": {
+    "p10": 473.562,
+    "p50": 665.81,
+    "p90": 1016.381
+   },
+   "minor": {
+    "p10": 221.182,
+    "p50": 267.364,
+    "p90": 427.454
+   },
+   "elongation": {
+    "p10": 1.502,
+    "p50": 2.524,
+    "p90": 3.96
+   },
+   "circ.": {
+    "p10": 0.003,
+    "p50": 0.005,
+    "p90": 0.007
+   },
+   "solidity": {
+    "p10": 0.317,
+    "p50": 0.418,
+    "p90": 0.482
+   },
+   "%area": {
+    "p10": 0.138,
+    "p50": 0.183,
+    "p90": 0.217
+   }
+  },
+  "Bacillariophyceae": {
+   "taxon_id": 17519,
+   "lineage": "Biota > Chromista > Heterokontophyta > Bacillariophytina > Bacillariophyceae",
+   "n": 13,
+   "equivalent_diameter": {
+    "p10": 149.91,
+    "p50": 168.27,
+    "p90": 201.182
+   },
+   "major": {
+    "p10": 480.57,
+    "p50": 651.177,
+    "p90": 715.856
+   },
+   "minor": {
+    "p10": 80.27,
+    "p50": 106.348,
+    "p90": 119.977
+   },
+   "elongation": {
+    "p10": 4.776,
+    "p50": 5.804,
+    "p90": 7.304
+   },
+   "circ.": {
+    "p10": 0.009,
+    "p50": 0.013,
+    "p90": 0.015
+   },
+   "solidity": {
+    "p10": 0.278,
+    "p50": 0.387,
+    "p90": 0.43
+   },
+   "%area": {
+    "p10": 0.068,
+    "p50": 0.144,
+    "p90": 0.31
+   }
+  },
+  "egg<other": {
+   "taxon_id": 85078,
+   "lineage": "Biota > other > egg",
+   "n": 12,
+   "equivalent_diameter": {
+    "p10": 177.867,
+    "p50": 205.272,
+    "p90": 272.845
+   },
+   "major": {
+    "p10": 255.079,
+    "p50": 350.274,
+    "p90": 461.12
+   },
+   "minor": {
+    "p10": 143.887,
+    "p50": 189.08,
+    "p90": 203.474
+   },
+   "elongation": {
+    "p10": 1.533,
+    "p50": 2.174,
+    "p90": 2.633
+   },
+   "circ.": {
+    "p10": 0.011,
+    "p50": 0.019,
+    "p90": 0.044
+   },
+   "solidity": {
+    "p10": 0.687,
+    "p50": 0.777,
+    "p90": 0.816
+   },
+   "%area": {
+    "p10": 0.093,
+    "p50": 0.149,
+    "p90": 0.187
+   }
+  },
+  "Fritillaria<Fritillariinae": {
+   "taxon_id": 56544,
+   "lineage": "Biota > Animalia > Chordata > Tunicata > Appendicularia > Copelata > Fritillariidae > Fritillariinae > Fritillaria",
+   "n": 12,
+   "equivalent_diameter": {
+    "p10": 192.214,
+    "p50": 217.056,
+    "p90": 274.94
+   },
+   "major": {
+    "p10": 396.066,
+    "p50": 567.987,
+    "p90": 695.765
+   },
+   "minor": {
+    "p10": 212.264,
+    "p50": 254.217,
+    "p90": 350.092
+   },
+   "elongation": {
+    "p10": 1.54,
+    "p50": 2.001,
+    "p90": 3.014
+   },
+   "circ.": {
+    "p10": 0.005,
+    "p50": 0.007,
+    "p90": 0.01
+   },
+   "solidity": {
+    "p10": 0.295,
+    "p50": 0.355,
+    "p90": 0.442
+   },
+   "%area": {
+    "p10": 0.132,
+    "p50": 0.196,
+    "p90": 0.286
+   }
+  },
+  "t005": {
+   "taxon_id": 85016,
+   "lineage": "temporary > t005",
+   "n": 12,
+   "equivalent_diameter": {
+    "p10": 58.322,
+    "p50": 75.959,
+    "p90": 104.48
+   },
+   "major": {
+    "p10": 214.264,
+    "p50": 324.219,
+    "p90": 669.2
+   },
+   "minor": {
+    "p10": 22.593,
+    "p50": 27.918,
+    "p90": 45.788
+   },
+   "elongation": {
+    "p10": 7.768,
+    "p50": 11.549,
+    "p90": 15.223
+   },
+   "circ.": {
+    "p10": 0.021,
+    "p50": 0.049,
+    "p90": 0.089
+   },
+   "solidity": {
+    "p10": 0.331,
+    "p50": 0.477,
+    "p90": 0.601
+   },
+   "%area": {
+    "p10": 0.021,
+    "p50": 0.03,
+    "p90": 0.066
+   }
+  },
+  "t010": {
+   "taxon_id": 85124,
+   "lineage": "temporary > t010",
+   "n": 11,
+   "equivalent_diameter": {
+    "p10": 110.426,
+    "p50": 121.734,
+    "p90": 128.962
+   },
+   "major": {
+    "p10": 141.66,
+    "p50": 195.579,
+    "p90": 213.583
+   },
+   "minor": {
+    "p10": 76.382,
+    "p50": 90.848,
+    "p90": 104.667
+   },
+   "elongation": {
+    "p10": 1.356,
+    "p50": 2.272,
+    "p90": 2.757
+   },
+   "circ.": {
+    "p10": 0.073,
+    "p50": 0.132,
+    "p90": 0.173
+   },
+   "solidity": {
+    "p10": 0.8,
+    "p50": 0.842,
+    "p90": 0.908
+   },
+   "%area": {
+    "p10": 0.036,
+    "p50": 0.06,
+    "p90": 0.086
+   }
+  }
+ }
+}
