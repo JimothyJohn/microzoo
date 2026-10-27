@@ -64,7 +64,40 @@ turn rate and straightness in real units, convection removed by debris consensus
 per-species `--params` file when a truth CSV is present. That is the loop that will one day
 run on real footage instead of the cheat sheet.
 
+## EcoTaxa
+
+[EcoTaxa](https://ecotaxa.obs-vlfr.fr) is the annotation platform plankton imagers feed, the
+PlanktoScope included: one object = images + a row of morphometric features, labelled by people
+and by a classifier trained on the features. `ecotaxa.py` makes a tracked clip speak it, so the
+v4 species labelling can run on EcoTaxa's UI and classifier instead of a home-grown one.
+
+```sh
+uv run python ecotaxa.py export data/eco_tracks.csv --images 5     # -> data/ecotaxa_eco.zip
+uv run python ecotaxa.py pull 2748 --out data/ecotaxa --images 20  # the PlanktoScope reference set
+make test-network                                                  # live API test, opt in
+```
+
+`export` writes an EcoTaxa import bundle: `ecotaxa_<stem>.tsv` (two header rows) plus JPEG crops.
+One object per track, up to `--images` frames per object (rank 1 = sharpest), the 33
+PlanktoScope morphometrics (`object_area`, `object_major`, `object_circ.`, ...) measured on the
+sharpest frame, and motion columns no plankton imager has (`object_speed_mean`,
+`object_turn_sigma`, `object_tortuosity`, from `trackstats.py`). Sidecar fields become
+`sample_*` / `acq_*` / `process_*`; an ecosim clip exports pre-annotated from its truth CSV
+(`object_annotation_status = predicted`, names that resolve on EcoTaxa).
+
+The morphometrics reimplement scikit-image's `regionprops` on OpenCV (perimeter, Euler number
+and convex hull are the same algorithms, pixel for pixel; `tests/fixtures/ecotaxa/skimage_blobs.*`
+pins that), so no scipy or skimage reaches the Pi.
+
+`pull` reads a public project anonymously: validated objects with taxon names, lineage and
+features (`ecotaxa_<id>_objects.csv`), a per-taxon size summary in µm (`ecotaxa_<id>_summary.json`),
+optional vignettes. `references/ecotaxa_2748_summary.json` is project 2748, the original
+PlanktoScope dataset (Pollina, Lombard, Prakash; Villefranche, January 2020, 20 µm net,
+1.19 µm/px, 5806 validated objects): real tintinnids, copepods, nauplii and the not-living
+classes (bubble, badfocus, ghost, detritus) a tracker has to reject.
+
 ## Pi
 
-`pip install --require-hashes -r requirements.txt` then copy `track.py`.
+`pip install --require-hashes -r requirements.txt` then copy `track.py` (and `trackstats.py` +
+`ecotaxa.py` if the Pi should write EcoTaxa bundles).
 No scipy. Regenerate the pins with `make requirements`.
