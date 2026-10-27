@@ -59,11 +59,14 @@ def test_ecosim_writes_clip_truth_events_and_sidecar(eco_clip):
     events = eco_clip.with_name("eco_events.csv")
     sidecar = eco_clip.with_suffix(".json")
     assert truth.exists() and events.exists() and sidecar.exists()
-    assert truth.read_text().splitlines()[0] == ("frame,obj_id,x,y,species,state,heading,length_px")
+    assert truth.read_text().splitlines()[0] == (
+        "frame,obj_id,x,y,species,state,heading,length_px,z_um"
+    )
     assert events.read_text().splitlines()[0] == "frame,t,kind,actor,subject,x,y"
     sc = json.loads(sidecar.read_text())
     assert sc["source"] == "ecosim" and sc["um_per_px"] == 4 and sc["fps"] == 30
     assert sc["cast"] == {"paramecium": 4, "debris": 30}
+    assert sc["depth_um"] == 150 and sc["dof_um"] == 30 and sc["focus_um"] == 75
     assert sc["species"]["paramecium"]["motion"]["speed"] == 1000
     t = read_truth(truth)
     assert len(t) == 180 and len(t[0]) == 34
@@ -82,8 +85,10 @@ def test_tracker_follows_every_paramecium_through_the_debris(eco_clip):
     for oid in paras:
         assert s["coverage"][oid] > 0.7, (oid, s)
         # v1 greedy: 0.17..0.42. Auction + area gate + fragment rule + last-position
-        # anchor: 0.27..0.63. What remains is two bodies merging into one blob and
-        # coming apart with swapped ids (see TODO.md). Coverage is the contract.
+        # anchor: 0.27..0.63 flat. With a 150 µm chamber (pass-overs, defocus) the
+        # per-seed minimum is unchanged within noise (0.28..0.84 on this seed, min
+        # 0.27-0.42 flat vs 0.28-0.41 deep over seeds 11-13): a pass-over is still
+        # one merged blob to the tracker. Coverage is the contract.
         assert s["stability"][oid] > 0.25, (oid, s)
     assert s["median_error"] < 4.0, s
 
@@ -148,6 +153,9 @@ def test_dump_params_is_valid_json(tmp_path):
         ["--um-per-px", "0"],
         ["--size", "10x10"],
         ["--polarity", "phase"],
+        ["--depth", "-1"],
+        ["--dof", "0"],
+        ["--depth", "100", "--focus", "150"],
     ],
 )
 def test_ecosim_rejects_bad_flags(tmp_path, args):
