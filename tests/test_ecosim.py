@@ -9,7 +9,7 @@ import math
 import numpy as np
 import pytest
 
-from ecosim import DEFAULT_CAST, World, parse_cast, render
+from ecosim import DEFAULT_CAST, Organism, World, parse_cast, render
 from species import SPECIES, load_params
 from sprites import stentor_length
 
@@ -223,3 +223,97 @@ def test_render_rejects_unknown_polarity():
     w = World({"paramecium": 1}, (300, 300), seed=1)
     with pytest.raises(ValueError, match="polarity"):
         render(w, (100, 100), 3.0, "phase", np.random.default_rng(0))
+
+
+# ---- depth ------------------------------------------------------------------
+
+STRAIGHT = '{"paramecium": {"motion": {"turn_sigma": 0, "wobble_amp": 0}}}'
+
+
+def _head_on(dz: float) -> tuple[World, Organism, Organism]:
+    """Two straight-swimming Paramecia on one line, approaching, ``dz`` µm apart in Z."""
+    w = World(
+        {"paramecium": 2},
+        (3000, 600),
+        seed=3,
+        species=load_params(STRAIGHT),
+        drift_um_s=0.0,
+        depth_um=150.0,
+        z_walk=0.0,
+    )
+    a, b = w.orgs
+    a.pos[:], a.heading, a.z, a.speed = (600.0, 300.0), 0.0, 75.0 - dz / 2, 1000.0
+    b.pos[:], b.heading, b.z, b.speed = (2400.0, 300.0), math.pi, 75.0 + dz / 2, 1000.0
+    return w, a, b  # they meet at x=1500 after 0.9 s; 1.5 s keeps both clear of the walls
+
+
+def test_swimmers_in_different_layers_pass_over_each_other():
+    w, a, b = _head_on(dz=100.0)  # thickness ~51 µm each: no contact possible
+    states = set()
+    for _ in range(45):
+        w.step(1 / 30)
+        states.update((a.state, b.state))
+    assert states == {"swim"}, states
+    assert a.pos[0] > b.pos[0] + 500  # crossed and kept going
+    assert a.heading == 0.0 and b.heading == math.pi
+    assert a.z == pytest.approx(25.0) and b.z == pytest.approx(125.0)  # z_walk 0: fixed
+
+
+def test_swimmers_in_the_same_layer_still_bump():
+    w, a, b = _head_on(dz=10.0)
+    seen_avoid = False
+    for _ in range(45):
+        w.step(1 / 30)
+        seen_avoid |= a.state == "avoid" or b.state == "avoid"
+    assert seen_avoid
+    assert a.heading != 0.0 or b.heading != math.pi  # somebody turned away
+
+
+def test_flat_world_is_the_old_sim():
+    cast = parse_cast(DEFAULT_CAST, SPECIES)
+    flat, old = World(cast, (1800, 1400), seed=4, depth_um=0.0), World(cast, (1800, 1400), seed=4)
+    for w in (flat, old):
+        _run(w, 2)
+    assert np.array_equal(np.array([o.pos for o in flat.orgs]), np.array([o.pos for o in old.orgs]))
+    assert all(o.z == 0.0 for o in flat.orgs)
+    assert all(float(r[8]) == 0.0 for r in flat.truth_rows(3.0))
+    deep = World(cast, (1800, 1400), seed=4, depth_um=150.0)
+    _run(deep, 2)
+    assert all(0.0 <= o.z <= 150.0 for o in deep.orgs)
+    assert len({round(o.z, 3) for o in deep.orgs}) > 1
+
+
+def test_sessile_and_anchored_keep_their_z_and_swimmers_wander():
+    w = World({"stentor": 1, "rotifer": 1, "paramecium": 3}, (3000, 2400), seed=5, depth_um=150.0)
+    z0 = {o.id: o.z for o in w.orgs}
+    _run(w, 2)
+    for o in w.orgs:
+        if o.species in ("stentor", "rotifer"):
+            assert o.z == z0[o.id]
+        else:
+            assert o.z != z0[o.id] and 0.0 <= o.z <= 150.0
+
+
+@pytest.mark.parametrize(
+    "bad", [dict(depth_um=-1), dict(dof_um=0), dict(depth_um=100, focus_um=101)]
+)
+def test_world_rejects_bad_depth(bad):
+    with pytest.raises(ValueError):
+        World({"paramecium": 1}, SMALL, seed=1, **bad)
+
+
+def _one_at(z: float, polarity: str = "darkfield") -> np.ndarray:
+    w = World({"paramecium": 1}, (900, 900), seed=1, depth_um=150.0, dof_um=30.0, focus_um=75.0)
+    o = w.orgs[0]
+    o.pos[:], o.z = (450.0, 450.0), z
+    return render(w, (300, 300), 3.0, polarity, np.random.default_rng(0), noise=0.0)[..., 0]
+
+
+def test_out_of_focus_body_is_softer_and_wider():
+    sharp, soft, edge = _one_at(75.0), _one_at(145.0), _one_at(75.0 + 14.0)
+    assert np.array_equal(sharp, edge)  # inside the depth of field nothing changes
+    assert soft.max() < sharp.max() - 20
+    assert (soft > 30).sum() > 1.05 * (sharp > 30).sum()  # sigma ~1.8 px at 70 µm out: mild
+    assert sharp.sum() * 0.8 < soft.sum() < sharp.sum() * 1.2  # light is spread, not lost
+    bf_sharp, bf_soft = _one_at(75.0, "brightfield"), _one_at(145.0, "brightfield")
+    assert bf_soft.min() > bf_sharp.min() + 20

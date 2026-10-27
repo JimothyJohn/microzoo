@@ -10,7 +10,7 @@ thing is deterministic for a seed and writes what track.py needs to be judged
 against, plus the events a future v3 detector should find:
 
     <out>                 the clip (mp4v)
-    <stem>_truth.csv      frame, obj_id, x, y, species, state, heading, length_px
+    <stem>_truth.csv      frame, obj_id, x, y, species, state, heading, length_px, z_um
     <stem>_events.csv     frame, t, kind, actor, subject, x, y  (capture, ingested,
                           contraction, release)
     <stem>.json           sidecar: the parameters that produced the clip; track.py
@@ -18,6 +18,11 @@ against, plus the events a future v3 detector should find:
 
     python ecosim.py --out data/eco.mp4 --frames 600 --fps 30 --size 960x720 \\
         --um-per-px 3 --cast paramecium=8,didinium=2,stentor=1,rotifer=2,debris=30
+
+The chamber has depth (``--depth``, µm): every free swimmer carries a Z, bodies
+only bump when they overlap in Z, so most crossings are pass-overs, and anything
+outside the depth of field (``--dof`` around ``--focus``) renders with a mild
+defocus blur. ``--depth 0`` is the old flat sim.
 
 ``--params my.json`` overrides any number in species.py (see ``--dump-params``);
 that file is the thing trackstats.py should one day fill in from real footage.
@@ -51,6 +56,9 @@ __all__ = ["DEFAULT_CAST", "Event", "Organism", "World", "parse_cast", "render",
 
 DEFAULT_CAST = "paramecium=8,didinium=2,stentor=1,rotifer=2,lacrymaria=1,dileptus=1,debris=30"
 EVENT_KINDS = ("capture", "ingested", "contraction", "release")
+Z_WALK_UM_SQRT_S = 20.0  # free swimmers' Z random walk, µm / sqrt(s)
+DEFOCUS_SIGMA_UM_PER_UM = 0.1  # blur sigma (µm) per µm outside the depth of field, ~NA at 4x
+_Z_WALKERS = frozenset({"swim", "hunt", "neck", "crawl", "hop", "passive"})
 
 
 @dataclass
@@ -82,6 +90,7 @@ class Organism:
     next_hop: float = 0.0
     reach: float = 1.0  # per-individual neck reach fraction
     grace: float = 0.0  # seconds after an avoiding reaction during which bumps are ignored
+    z: float = 0.0  # µm above the chamber floor; 0 everywhere in a flat (depth 0) world
 
 
 @dataclass(frozen=True)
@@ -127,9 +136,21 @@ class World:
         species: dict[str, Species] | None = None,
         drift_um_s: float = 25.0,
         drift_period_s: float = 90.0,
+        depth_um: float = 0.0,
+        dof_um: float = 30.0,
+        focus_um: float | None = None,
+        z_walk: float = Z_WALK_UM_SQRT_S,
     ) -> None:
+        if depth_um < 0 or dof_um <= 0 or z_walk < 0:
+            raise ValueError("depth_um >= 0, dof_um > 0, z_walk >= 0")
         self.species = species or SPECIES
         self.w, self.h = float(size_um[0]), float(size_um[1])
+        self.depth = float(depth_um)
+        self.dof = float(dof_um)
+        self.focus = self.depth / 2 if focus_um is None else float(focus_um)
+        if not 0 <= self.focus <= self.depth:
+            raise ValueError(f"focus_um must lie in [0, {self.depth}]")
+        self.z_walk = float(z_walk)
         self.rng = np.random.default_rng(seed)
         self.t = 0.0
         self.frame = 0
@@ -196,6 +217,8 @@ class World:
                 o.next_hop = float(rng.exponential(1 / max(m.hop_rate, 1e-6)))
             elif m.kind == "passive":
                 o.state = "passive"
+        if self.depth > 0:  # drawn last so a flat world consumes the same random stream as before
+            o.z = float(rng.uniform(0, self.depth))
         self.orgs.append(o)
         self._by_id[o.id] = o
         return o
@@ -243,13 +266,21 @@ class World:
         m = 0.35 * o.length_um
         return bool(o.pos[0] < m or o.pos[0] > self.w - m or o.pos[1] < m or o.pos[1] > self.h - m)
 
+    def _thickness(self, o: Organism) -> float:
+        return o.width_um * self.species[o.species].thick
+
+    def _same_layer(self, o: Organism, p: Organism) -> bool:
+        """True when the two bodies overlap in Z, i.e. could actually touch."""
+        return abs(o.z - p.z) < 0.5 * (self._thickness(o) + self._thickness(p))
+
     def _bumped(self, o: Organism) -> bool:
         if self._near_wall(o):
             return True
         for p in self.orgs:
             if p is o or not p.visible or p.species == "debris":
                 continue
-            if np.linalg.norm(p.pos - o.pos) < 0.3 * (o.length_um + p.length_um):
+            close = np.linalg.norm(p.pos - o.pos) < 0.3 * (o.length_um + p.length_um)
+            if close and self._same_layer(o, p):
                 return True
         return False
 
@@ -281,6 +312,11 @@ class World:
         for o in self.orgs:
             kind = self.species[o.species].motion.kind
             getattr(self, f"_step_{kind}")(o, dt, drift)
+            # caught prey rides its predator's Z; everything else free wanders
+            walks = kind in _Z_WALKERS and o.visible and o.state != "caught"
+            if walks and self.depth > 0 and self.z_walk > 0:
+                o.z += self.z_walk * math.sqrt(dt) * float(self.rng.normal())
+                o.z = float(np.clip(o.z, 0.0, self.depth))
         self.t += dt
         self.frame += 1
 
@@ -328,7 +364,7 @@ class World:
                 if p.species != "paramecium" or not p.visible or p.state == "caught":
                     continue
                 d = float(np.linalg.norm(p.pos - o.pos)) - 0.5 * p.length_um
-                if d < m.strike_radius and d < bd:
+                if d < m.strike_radius and d < bd and self._same_layer(o, p):
                     best, bd = p, d
             if best is not None:
                 o.state, o.timer, o.target = "ingest", m.ingest_time, best.id
@@ -346,6 +382,7 @@ class World:
                 prey.pos = snout + (o.pos - snout) * k
                 prey.heading = o.heading + math.pi / 2
                 prey.shrink = 1 - 0.9 * k
+                prey.z = o.z
             if o.timer <= 0:
                 if prey is not None:
                     prey.visible, prey.state = False, "eaten"
@@ -466,12 +503,30 @@ class World:
                     o.state,
                     f"{o.heading:.4f}",
                     f"{o.length_um * o.shrink / um_per_px:.2f}",
+                    f"{o.z:.1f}",
                 ]
             )
         return rows
 
 
 _SPRITE_CACHE: dict[tuple, tuple[np.ndarray, int]] = {}
+
+
+def defocus_sigma_px(z: float, focus: float, dof: float, um_per_px: float) -> float:
+    """Gaussian sigma in px for a body ``z`` µm from the focal plane: zero inside
+    the depth of field, then linear in the distance beyond it."""
+    excess = max(0.0, abs(z - focus) - 0.5 * dof)
+    return DEFOCUS_SIGMA_UM_PER_UM * excess / um_per_px
+
+
+def defocus(sig: np.ndarray, sigma_px: float) -> np.ndarray:
+    """Blur a sprite signal, padding the canvas so the spread is not clipped."""
+    if sigma_px < 0.05:
+        return sig
+    pad = int(math.ceil(3 * sigma_px))
+    padded = cv2.copyMakeBorder(sig, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=0)
+    out = cv2.GaussianBlur(padded, (0, 0), sigma_px)
+    return out.reshape(padded.shape[0], padded.shape[1], 2)
 
 
 def render(
@@ -497,7 +552,14 @@ def render(
     w, h = size
     bright = polarity == "brightfield"
     img = np.full((h, w), 225.0 if bright else 18.0, np.float32)
-    order = sorted(world.orgs, key=lambda o: world.species[o.species].motion.kind != "passive")
+    # debris first, then far-from-focus before in-focus so a sharp body draws over a soft one
+    order = sorted(
+        world.orgs,
+        key=lambda o: (
+            world.species[o.species].motion.kind != "passive",
+            -abs(o.z - world.focus),
+        ),
+    )
     for o in order:
         if not o.visible:
             continue
@@ -523,6 +585,8 @@ def render(
             sig, _ = _SPRITE_CACHE[key]
         else:
             sig, _ = render_sprite(spec, st, rng)
+        if world.depth > 0:
+            sig = defocus(sig, defocus_sigma_px(o.z, world.focus, world.dof, um_per_px))
         composite(img, sig, o.pos[0] / um_per_px, o.pos[1] / um_per_px, polarity)
     sigma_px = blur_um / um_per_px / 2.355  # FWHM -> sigma
     if sigma_px > 0.05:
@@ -557,7 +621,9 @@ def write_clip(
     dt = 1.0 / fps
     with truth.open("w", newline="") as fh:
         cw = csv.writer(fh)
-        cw.writerow(["frame", "obj_id", "x", "y", "species", "state", "heading", "length_px"])
+        cw.writerow(
+            ["frame", "obj_id", "x", "y", "species", "state", "heading", "length_px", "z_um"]
+        )
         for _ in range(frames):
             cw.writerows(world.truth_rows(um_per_px))
             wr.write(render(world, size, um_per_px, polarity, rng, noise=noise, blur_um=blur_um))
@@ -612,6 +678,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--drift", type=float, default=25.0, help="convection speed, µm/s")
     p.add_argument("--drift-period", type=float, default=90.0, help="current rotation period, s")
     p.add_argument("--noise", type=float, default=6.0, help="sensor noise sigma")
+    p.add_argument("--depth", type=float, default=150.0, help="chamber depth, µm (0 = flat sim)")
+    p.add_argument("--dof", type=float, default=30.0, help="depth of field, µm")
+    p.add_argument("--focus", type=float, help="focal plane height, µm (default: depth/2)")
     p.add_argument(
         "--blur-um",
         type=float,
@@ -646,14 +715,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ecosim: bad --cast: {e}", file=sys.stderr)
         return 2
     w, h = a.size
-    world = World(
-        cast,
-        (w * a.um_per_px, h * a.um_per_px),
-        seed=a.seed,
-        species=species,
-        drift_um_s=a.drift,
-        drift_period_s=a.drift_period,
-    )
+    try:
+        world = World(
+            cast,
+            (w * a.um_per_px, h * a.um_per_px),
+            seed=a.seed,
+            species=species,
+            drift_um_s=a.drift,
+            drift_period_s=a.drift_period,
+            depth_um=a.depth,
+            dof_um=a.dof,
+            focus_um=a.focus,
+        )
+    except ValueError as e:
+        print(f"ecosim: bad --depth/--dof/--focus: {e}", file=sys.stderr)
+        return 2
     sidecar = {
         "source": "ecosim",
         "illumination": a.polarity,
@@ -665,6 +741,9 @@ def main(argv: list[str] | None = None) -> int:
         "cast": cast,
         "drift_um_s": a.drift,
         "drift_period_s": a.drift_period,
+        "depth_um": world.depth,
+        "dof_um": world.dof,
+        "focus_um": world.focus,
         "blur_um": a.blur_um,
         "noise": a.noise,
         "species": json.loads(dump_params({k: species[k] for k in cast})),

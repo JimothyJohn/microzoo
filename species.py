@@ -78,6 +78,7 @@ class Species:
     motion: Motion
     look: Look
     length_cv: float = 0.15  # per-individual size spread
+    thick: float = 0.55  # body thickness / width; bodies only touch when they overlap in Z
     notes: str = ""
     references: tuple[str, ...] = field(default_factory=tuple)  # titles in references/images.json
 
