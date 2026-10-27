@@ -43,6 +43,13 @@ unattended 48 h runs need it. The fork exists because on 2026-10-25 the
 Pi 5 8 GB costs $175 (memory prices; launch MSRP was $80) and the Pi GS
 camera is out of stock at every US reseller checked.
 
+**Decided 2026-10-26:** the order is Path B's (Studio captures through
+G4, Pi at G5), but the scope and the camera are sourced used via Nick's
+deal scanner, and resale value rather than the $1,000 line governs what
+they may cost (`SOURCING.md` §4, watchlist included). The table below is
+the new-parts floor; Path A survives only as the numbers it would have
+cost.
+
 | Gate | Group | Parts | Path A | Path B |
 |---|---|---|---|---|
 | G0 | Culture + field kit | jars, baster, pipettes, labels, strainer; all but the pipettes are probably in the kitchen | $8 (+$24 if bought) | same |
@@ -125,6 +132,11 @@ bring-up step 4. The Pi-CSI AR0234 (B0353) is M12 fixed-lens only and
 is not an option for a microscope. Path B moves the Pi purchase to G5;
 the architecture (`CLAUDE.md`, "Keep the Pi dumb") does not change, the
 same UVC camera plugs into the Pi 5's USB 3 port when it arrives.
+**Third way, since 2026-10-26:** a used USB3 Vision global-shutter camera
+(Basler ace, FLIR Blackfly S, Daheng; `SOURCING.md` §4) if the scanner
+finds one, because it resells. Same C-mount, same reducer, same numbers
+for the 1920×1200 models; the cost is a vendor SDK instead of UVC, on
+the Studio now and on the Pi at G5.
 
 **Pi 5 8 GB (Path A now, Path B at G5).** `track.py` on a 1080p frame at `--scale 0.5` runs in a
 few ms on the Studio; the Pi 5 has roughly a tenth of that CPU, which is
@@ -260,9 +272,9 @@ Decided for now, revisit only on the evidence named.
 
 | Decision | Current | Revisit when |
 |---|---|---|
-| Camera | AR0234 USB 3 C-mount (Path B) or Pi GS IMX296 (Path A) | Path A footage cannot separate species the 10x should resolve → AR0234 |
-| Scope | used Olympus/Nikon binocular, camera in one eyepiece tube | no complete listing under $350 in two weeks → new AmScope B120C |
-| Capture box for G2–G4 | Mac Studio + USB 3 AR0234 (Path B) | Nick picks Path A, or the Pi 5 drops back under $100 and the GS camera is in stock → Pi first |
+| Camera | used USB3 Vision global shutter (Basler/FLIR class) if the scanner finds one; AR0234 USB 3 C-mount as the floor; decided 2026-10-26 | the scanner has nothing by the time G2 passes → buy the AR0234 new |
+| Scope | used, resale-strong first (Olympus BX / Nikon Eclipse class, trinocular if the relay comes with it), CH-2 class binocular as the floor; decided 2026-10-26 | no complete listing of either class by G2 → new AmScope B120C |
+| Capture box for G2–G4 | Mac Studio + the USB 3 camera; Pi at G5 (decided 2026-10-26) | G5 |
 | Darkfield | printed Abbe patch stop | §5 step 3 fails on stop and oblique → dry darkfield condenser |
 | Capture format | MJPEG to SSD | bring-up step 8 shows the Pi can software-encode H.264 at 60 fps with headroom → switch |
 | Chamber | 120 µm tape spacer | tape thickness varies > 20% between batches → SecureSeal |
@@ -276,8 +288,9 @@ does all ML; no XY motor.
 
 - Any new compound microscope above $500, any phase-contrast kit, any
   objective above 40x. The 4x and 10x do the work.
-- Tier 2 machine-vision camera (Daheng/Basler/FLIR, $300–600). Only if the
-  G5 footage shows cropping is the limit, and it is outside the $1,000 line.
+- A new Tier 2 machine-vision camera (Daheng/Basler/FLIR, $300–600).
+  Used, it is on the G2 watchlist under the 2026-10-26 resale rule; new,
+  only if the G5 footage shows cropping is the limit.
 - Motorised XY stage. Core decision, see `CLAUDE.md`.
 - Pi camera lenses: the microscope is the lens.
 - A second Pi or a Jetson. The Pi 5 is the ceiling for the dumb half.
