@@ -24,6 +24,13 @@ only bump when they overlap in Z, so most crossings are pass-overs, and anything
 outside the depth of field (``--dof`` around ``--focus``) renders with a mild
 defocus blur. ``--depth 0`` is the old flat sim.
 
+``--preset microbe|ciliate|metazoan`` picks a rung of the food chain: a cast and
+a µm/px to match (40x on bacteria and flagellates; 4x-10x on the ciliate cast;
+the TOMLOV's 6 µm/px on Daphnia, copepods and Hydra). Who eats whom is
+``species.py``'s ``prey`` lists: every mobile kind grazes or hunts with the same
+code, sessile ones feed at the bell, traps (heliozoa, Hydra) take what touches
+their reach.
+
 ``--params my.json`` overrides any number in species.py (see ``--dump-params``);
 that file is the thing trackstats.py should one day fill in from real footage.
 Units inside the sim are micrometres and seconds; pixels only at the edges.
@@ -52,13 +59,42 @@ from sprites import (  # noqa: E402
     stentor_length,
 )
 
-__all__ = ["DEFAULT_CAST", "Event", "Organism", "World", "parse_cast", "render", "write_clip"]
+__all__ = [
+    "DEFAULT_CAST",
+    "PRESETS",
+    "Event",
+    "Organism",
+    "World",
+    "parse_cast",
+    "render",
+    "write_clip",
+]
 
 DEFAULT_CAST = "paramecium=8,didinium=2,stentor=1,rotifer=2,lacrymaria=1,dileptus=1,debris=30"
+# --preset: (cast, µm/px). One rung of the chain each; the cast's prey are in the frame too.
+PRESETS: dict[str, tuple[str, float]] = {
+    "microbe": (
+        "bacteria=150,chlamydomonas=12,euglena=4,diatom=4,tetrahymena=5,halteria=3,coleps=1,"
+        "debris=10",
+        0.3,
+    ),
+    "ciliate": (
+        DEFAULT_CAST + ",tetrahymena=6,blepharisma=2,vorticella=2,euplotes=2,spirostomum=1,"
+        "actinosphaerium=1,volvox=1,coleps=2,halteria=3,bacteria=200",
+        1.5,
+    ),
+    "metazoan": (
+        "daphnia=4,cyclops=2,ostracod=2,nematode=2,tardigrade=1,gastrotrich=2,hydra=1,"
+        "planaria=1,rotifer=4,paramecium=10,volvox=2,stentor=1,debris=20",
+        6.0,
+    ),
+}
 EVENT_KINDS = ("capture", "ingested", "contraction", "release")
 Z_WALK_UM_SQRT_S = 20.0  # free swimmers' Z random walk, µm / sqrt(s)
 DEFOCUS_SIGMA_UM_PER_UM = 0.1  # blur sigma (µm) per µm outside the depth of field, ~NA at 4x
-_Z_WALKERS = frozenset({"swim", "hunt", "neck", "crawl", "hop", "passive"})
+_Z_WALKERS = frozenset({"swim", "hunt", "neck", "crawl", "hop", "passive", "tumble", "wriggle"})
+_MOBILE = frozenset({"swim", "hunt", "hop", "tumble", "glide", "wriggle", "crawl", "neck"})
+_FIXED = frozenset({"sessile", "trap"})  # foot on a wall, body pointing in
 
 
 @dataclass
@@ -186,7 +222,7 @@ class World:
             blob_phase=float(rng.uniform(0, 1)),
             reach=float(rng.uniform(0.6, 1.0)),
         )
-        if m.kind == "sessile":
+        if m.kind in _FIXED:
             # foot on a wall, bell pointing in
             side = int(rng.integers(0, 4))
             inset = 0.06
@@ -219,6 +255,8 @@ class World:
                 o.state = "passive"
         if self.depth > 0:  # drawn last so a flat world consumes the same random stream as before
             o.z = float(rng.uniform(0, self.depth))
+        if m.kind == "glide":
+            o.z = 0.0  # on the glass
         self.orgs.append(o)
         self._by_id[o.id] = o
         return o
@@ -279,20 +317,93 @@ class World:
         for p in self.orgs:
             if p is o or not p.visible or p.species == "debris":
                 continue
+            if p.length_um < 0.25 * o.length_um:
+                continue  # small things are food or scenery, not obstacles
             close = np.linalg.norm(p.pos - o.pos) < 0.3 * (o.length_um + p.length_um)
             if close and self._same_layer(o, p):
                 return True
         return False
 
-    def _swimmers_near(self, point: np.ndarray, radius: float) -> bool:
+    def _swimmers_near(self, point: np.ndarray, radius: float, min_length: float = 0.0) -> bool:
+        """A free mover at least ``min_length`` long within ``radius`` of ``point``."""
         for p in self.orgs:
-            if not p.visible or self.species[p.species].motion.kind not in ("swim", "hunt", "hop"):
+            if not p.visible or self.species[p.species].motion.kind not in _MOBILE:
+                continue
+            if p.length_um < min_length:
                 continue
             if p.state in ("caught", "ingest"):
                 continue
             if np.linalg.norm(p.pos - point) < radius + 0.5 * p.length_um:
                 return True
         return False
+
+    # ---- feeding: one strike/graze/swallow code path for every kind ------------
+    def _try_capture(self, o: Organism, mouth: np.ndarray | None = None) -> Organism | None:
+        """Take the nearest prey within ``strike_radius`` of ``mouth`` (default: the
+        body centre). Feeders with an ``ingest_time`` swallow it over that time;
+        the rest graze it in one frame. Returns the prey, or None."""
+        m = self.species[o.species].motion
+        if not m.prey or m.strike_radius <= 0:
+            return None
+        point = o.pos if mouth is None else mouth
+        through_z = m.kind == "trap"  # rays and tentacles span the chamber
+        best, bd = None, float("inf")
+        for p in self.orgs:
+            if p is o or not p.visible or p.species not in m.prey:
+                continue
+            if p.state in ("caught", "ingest", "eaten"):
+                continue
+            if p.length_um > m.prey_ratio * o.length_um:
+                continue
+            d = float(np.linalg.norm(p.pos - point)) - 0.5 * p.length_um
+            if d < m.strike_radius and d < bd and (through_z or self._same_layer(o, p)):
+                best, bd = p, d
+        if best is None:
+            return None
+        if m.ingest_time > 0:
+            o.state, o.timer, o.target = "ingest", m.ingest_time, best.id
+            best.state, best.target = "caught", o.id
+            if m.kind in _MOBILE:
+                o.heading = math.atan2(*(best.pos - o.pos)[::-1])
+            self._log("capture", o, best)
+        else:
+            best.visible, best.state = False, "eaten"
+            self._log("ingested", o, best)
+        return best
+
+    def _feeding(self, o: Organism, dt: float, drift: np.ndarray) -> bool:
+        """Advance an ingest or digest in progress. True while the organism is busy."""
+        if o.state not in ("ingest", "digest"):
+            return False
+        m = self.species[o.species].motion
+        fixed = m.kind in _FIXED
+        if o.state == "ingest":
+            prey = self._by_id[o.target] if o.target is not None else None
+            o.timer -= dt
+            k = float(np.clip(1 - o.timer / max(m.ingest_time, 1e-6), 0, 1))
+            if not fixed:
+                o.pos += drift * dt
+            o.swell = 1 + 0.35 * k
+            if prey is not None:
+                snout = o.pos + _dir(o.heading) * 0.5 * o.length_um
+                prey.pos = snout + (o.pos - snout) * k
+                prey.heading = o.heading + math.pi / 2
+                prey.shrink = 1 - 0.9 * k
+                prey.z = o.z
+            if o.timer <= 0:
+                if prey is not None:
+                    prey.visible, prey.state = False, "eaten"
+                    self._log("ingested", o, prey)
+                o.state, o.timer, o.target = "digest", m.digest_time, None
+        else:  # digest
+            o.timer -= dt
+            o.swell = 1 + 0.35 * max(0.0, o.timer / max(m.digest_time, 1e-6))
+            if not fixed:
+                self._random_walk(o, dt, m.digest_speed, drift)
+                self._walls(o)
+            if o.timer <= 0:
+                o.state, o.swell = ("extended" if fixed else "swim"), 1.0
+        return True
 
     def _log(self, kind: str, actor: Organism, subject: Organism | None = None) -> None:
         self.events.append(
@@ -310,6 +421,8 @@ class World:
     def step(self, dt: float) -> None:
         drift = self.drift()
         for o in self.orgs:
+            if not o.visible or o.state == "caught":
+                continue  # eaten, or being swallowed: the predator moves it
             kind = self.species[o.species].motion.kind
             getattr(self, f"_step_{kind}")(o, dt, drift)
             # caught prey rides its predator's Z; everything else free wanders
@@ -345,56 +458,36 @@ class World:
                     inward = np.array([self.w / 2, self.h / 2]) - o.pos
                     o.heading = math.atan2(inward[1], inward[0]) + float(self.rng.normal(0, 0.6))
                 o.state, o.grace = "swim", 0.5
+        elif o.state == "contracted":  # Spirostomum-style snap, then slow re-extension
+            o.timer -= dt
+            o.pos += drift * dt
+            o.contraction = max(0.0, o.timer / max(m.reextend_time, 1e-6)) ** 1.5
+            if o.contraction < 0.05:
+                if self._near_wall(o):
+                    inward = np.array([self.w / 2, self.h / 2]) - o.pos
+                    o.heading = math.atan2(inward[1], inward[0]) + float(self.rng.normal(0, 0.6))
+                o.contraction, o.state, o.grace = 0.0, "swim", 0.8
         else:
             o.grace = max(0.0, o.grace - dt)
             self._random_walk(o, dt, o.speed, drift)
             if o.grace <= 0 and self._bumped(o):
-                o.state = "avoid"
-                o.timer = m.avoid_time
+                if self.species[o.species].look.contractile and m.reextend_time > 0:
+                    o.contraction, o.timer, o.state = 1.0, m.reextend_time, "contracted"
+                    self._log("contraction", o)
+                else:
+                    o.state = "avoid"
+                    o.timer = m.avoid_time
+            else:
+                self._try_capture(o)
         self._walls(o)
 
     def _step_hunt(self, o: Organism, dt: float, drift: np.ndarray) -> None:
-        m = self.species[o.species].motion
         o.phase = (o.phase + 25 * dt) % 1.0
-        if o.state == "swim":
-            self._random_walk(o, dt, o.speed, drift)
-            self._walls(o)
-            best, bd = None, float("inf")
-            for p in self.orgs:
-                if p.species != "paramecium" or not p.visible or p.state == "caught":
-                    continue
-                d = float(np.linalg.norm(p.pos - o.pos)) - 0.5 * p.length_um
-                if d < m.strike_radius and d < bd and self._same_layer(o, p):
-                    best, bd = p, d
-            if best is not None:
-                o.state, o.timer, o.target = "ingest", m.ingest_time, best.id
-                best.state, best.target = "caught", o.id
-                o.heading = math.atan2(*(best.pos - o.pos)[::-1])
-                self._log("capture", o, best)
-        elif o.state == "ingest":
-            prey = self._by_id[o.target] if o.target is not None else None
-            o.timer -= dt
-            k = float(np.clip(1 - o.timer / max(m.ingest_time, 1e-6), 0, 1))
-            o.pos += drift * dt
-            o.swell = 1 + 0.35 * k
-            if prey is not None:
-                snout = o.pos + _dir(o.heading) * 0.5 * o.length_um
-                prey.pos = snout + (o.pos - snout) * k
-                prey.heading = o.heading + math.pi / 2
-                prey.shrink = 1 - 0.9 * k
-                prey.z = o.z
-            if o.timer <= 0:
-                if prey is not None:
-                    prey.visible, prey.state = False, "eaten"
-                    self._log("ingested", o, prey)
-                o.state, o.timer, o.target = "digest", m.digest_time, None
-        else:  # digest
-            o.timer -= dt
-            o.swell = 1 + 0.35 * max(0.0, o.timer / max(m.digest_time, 1e-6))
-            self._random_walk(o, dt, m.digest_speed, drift)
-            self._walls(o)
-            if o.timer <= 0:
-                o.state, o.swell = "swim", 1.0
+        if self._feeding(o, dt, drift):
+            return
+        self._random_walk(o, dt, o.speed, drift)
+        self._walls(o)
+        self._try_capture(o)
 
     def _step_sessile(self, o: Organism, dt: float, drift: np.ndarray) -> None:
         m = self.species[o.species].motion
@@ -402,11 +495,13 @@ class World:
         o.heading = o.base_heading + 0.12 * math.sin(2 * math.pi * 0.3 * self.t + o.seed % 7)
         if o.contraction < 0.05:
             bell = o.anchor + _dir(o.heading) * o.length_um
-            if self._swimmers_near(bell, m.contract_radius) or (
+            if self._swimmers_near(bell, m.contract_radius, 0.25 * o.length_um) or (
                 self.rng.random() < m.contract_rate * dt
             ):
                 o.contraction, o.timer, o.state = 1.0, m.reextend_time, "contracted"
                 self._log("contraction", o)
+            else:
+                self._try_capture(o, mouth=bell)
         else:
             o.timer -= dt
             o.contraction = max(0.0, o.timer / max(m.reextend_time, 1e-6)) ** 1.5
@@ -426,10 +521,13 @@ class World:
             if self.rng.random() < m.release_rate * dt:
                 o.state, o.timer, o.contraction = "free", m.release_time, 0.0
                 self._log("release", o)
+            else:
+                self._try_capture(o, mouth=o.anchor + _dir(o.heading) * le)
         else:
             o.timer -= dt
             self._random_walk(o, dt, o.speed, drift)
             self._walls(o)
+            self._try_capture(o)
             if o.timer <= 0:
                 o.state, o.base_heading = "anchored", o.heading
                 o.anchor = o.pos - _dir(o.heading) * o.length_um / 2
@@ -437,6 +535,9 @@ class World:
     def _step_neck(self, o: Organism, dt: float, drift: np.ndarray) -> None:
         m = self.species[o.species].motion
         o.phase = (o.phase + 15 * dt) % 1.0
+        if self._feeding(o, dt, drift):
+            o.neck = 0.0
+            return
         self._random_walk(o, dt, o.speed, drift)
         self._walls(o)
         cycle = (self.t * m.neck_hz + o.seed % 100 / 100) % 1.0
@@ -449,22 +550,37 @@ class World:
         o.neck = ext * m.neck_reach * o.reach
         o.neck_angle = 1.0 * math.sin(2 * math.pi * 1.3 * m.neck_hz * self.t + o.seed % 11)
         o.state = "extended" if ext > 0.3 else "retracted"
+        if ext > 0.3:  # the neck tip is the mouth
+            tip = (
+                o.pos
+                + _dir(o.heading) * 0.5 * o.length_um
+                + _dir(o.heading + o.neck_angle) * o.neck
+            )
+            self._try_capture(o, mouth=tip)
 
     def _step_crawl(self, o: Organism, dt: float, drift: np.ndarray) -> None:
         o.phase = (o.phase + 15 * dt) % 1.0
+        if self._feeding(o, dt, drift):
+            return
         self._random_walk(o, dt, o.speed, drift)
         self._walls(o)
         o.proboscis_angle = 0.9 * math.sin(2 * math.pi * 0.8 * self.t + o.seed % 13)
+        self._try_capture(o)
 
     def _step_drift(self, o: Organism, dt: float, drift: np.ndarray) -> None:
         # stuck to the glass: creeps, does not ride the current
+        if self._feeding(o, dt, np.zeros(2)):
+            return
         self._random_walk(o, dt, o.speed, np.zeros(2))
         self._walls(o)
         o.blob_phase = (o.blob_phase + 0.03 * dt) % 1.0
         o.state = "creep"
+        self._try_capture(o)
 
     def _step_hop(self, o: Organism, dt: float, drift: np.ndarray) -> None:
         m = self.species[o.species].motion
+        if self._feeding(o, dt, drift):
+            return
         o.next_hop -= dt
         if o.next_hop <= 0 and o.timer <= 0:
             o.heading += float(self.rng.normal(0, 1.2))
@@ -482,10 +598,57 @@ class World:
             o.phase = (o.phase + 3 * dt) % 1.0
             o.state = "sink"
         self._walls(o)
+        self._try_capture(o)
 
     def _step_passive(self, o: Organism, dt: float, drift: np.ndarray) -> None:
         o.pos += drift * dt + self.rng.normal(0, 2.0 * math.sqrt(dt), 2)
         self._walls(o, margin=1.0)
+
+    def _step_tumble(self, o: Organism, dt: float, drift: np.ndarray) -> None:
+        """Run-and-tumble: straight runs, then a fresh heading."""
+        m = self.species[o.species].motion
+        o.phase = (o.phase + 30 * dt) % 1.0
+        if self.rng.random() < m.tumble_rate * dt:
+            o.heading = float(self.rng.uniform(0, 2 * math.pi))
+        else:
+            o.heading += m.turn_sigma * math.sqrt(dt) * float(self.rng.normal())
+        o.pos += _dir(o.heading) * o.speed * dt + drift * dt
+        self._walls(o)
+        o.state = "run"
+        self._try_capture(o)
+
+    def _step_glide(self, o: Organism, dt: float, drift: np.ndarray) -> None:
+        """On the glass: smooth, no wobble, the current does not move it."""
+        o.phase = (o.phase + 8 * dt) % 1.0
+        if self._feeding(o, dt, np.zeros(2)):
+            return
+        self._random_walk(o, dt, o.speed, np.zeros(2))
+        self._walls(o)
+        o.state = "glide"
+        self._try_capture(o)
+
+    def _step_wriggle(self, o: Organism, dt: float, drift: np.ndarray) -> None:
+        """Body wave at ``wriggle_hz``; progress pulses with the wave."""
+        m = self.species[o.species].motion
+        o.phase = (o.phase + m.wriggle_hz * dt) % 1.0
+        if self._feeding(o, dt, drift):
+            return
+        o.heading += m.turn_sigma * math.sqrt(dt) * float(self.rng.normal())
+        pulse = 0.5 + 0.5 * abs(math.sin(2 * math.pi * o.phase))
+        o.pos += _dir(o.heading) * o.speed * pulse * dt + drift * dt
+        self._walls(o)
+        o.state = "wriggle"
+        self._try_capture(o)
+
+    def _step_trap(self, o: Organism, dt: float, drift: np.ndarray) -> None:
+        """Foot on the wall, body still, reach all round; takes what touches it."""
+        o.phase = (o.phase + 0.4 * dt) % 1.0
+        o.heading = o.base_heading + 0.08 * math.sin(2 * math.pi * 0.2 * self.t + o.seed % 7)
+        o.pos = o.anchor + _dir(o.heading) * o.length_um / 2
+        if self._feeding(o, dt, drift):
+            return
+        o.state = "extended"
+        self._try_capture(o)
 
     # ---- output ------------------------------------------------------------
     def truth_rows(self, um_per_px: float) -> list[list]:
@@ -669,11 +832,16 @@ def build_parser() -> argparse.ArgumentParser:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     p.add_argument("--out", type=Path, help="output .mp4")
-    p.add_argument("--cast", default=DEFAULT_CAST, help="species=count,... (default: %(default)s)")
+    p.add_argument(
+        "--preset",
+        choices=sorted(PRESETS),
+        help="a rung of the food chain: sets --cast and --um-per-px unless given",
+    )
+    p.add_argument("--cast", help=f"species=count,... (default: {DEFAULT_CAST})")
     p.add_argument("--frames", type=int, default=300)
     p.add_argument("--fps", type=float, default=30.0)
     p.add_argument("--size", type=_size, default=(640, 480), help="frame WxH px")
-    p.add_argument("--um-per-px", type=float, default=3.0, help="scale (AR0234 at 4x: 1.5)")
+    p.add_argument("--um-per-px", type=float, help="scale, default 3 (AR0234 at 4x: 1.5)")
     p.add_argument("--polarity", choices=POLARITIES, default="darkfield")
     p.add_argument("--drift", type=float, default=25.0, help="convection speed, µm/s")
     p.add_argument("--drift-period", type=float, default=90.0, help="current rotation period, s")
@@ -706,6 +874,11 @@ def main(argv: list[str] | None = None) -> int:
     if a.out is None:
         print("ecosim: --out is required (or --dump-params)", file=sys.stderr)
         return 2
+    preset_cast, preset_scale = PRESETS[a.preset] if a.preset else (DEFAULT_CAST, 3.0)
+    if a.cast is None:
+        a.cast = preset_cast
+    if a.um_per_px is None:
+        a.um_per_px = preset_scale
     if a.frames < 1 or a.fps <= 0 or a.um_per_px <= 0 or a.blur_um < 0:
         print("ecosim: frames >= 1, fps > 0, um-per-px > 0", file=sys.stderr)
         return 2
@@ -738,6 +911,7 @@ def main(argv: list[str] | None = None) -> int:
         "size": [w, h],
         "frames": a.frames,
         "seed": a.seed,
+        "preset": a.preset,
         "cast": cast,
         "drift_um_s": a.drift,
         "drift_period_s": a.drift_period,

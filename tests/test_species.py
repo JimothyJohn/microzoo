@@ -7,9 +7,7 @@ import json
 
 import pytest
 
-from species import SPECIES, Motion, Species, dump_params, load_params
-
-KINDS = {"swim", "hunt", "sessile", "anchored", "neck", "crawl", "drift", "hop", "passive"}
+from species import KINDS, SPECIES, TIERS, Motion, Species, dump_params, load_params
 
 
 def test_every_species_is_well_formed():
@@ -17,6 +15,8 @@ def test_every_species_is_well_formed():
         assert isinstance(sp, Species) and sp.name == name
         assert sp.length_um > 0 and 0 < sp.aspect <= 1
         assert sp.motion.kind in KINDS, (name, sp.motion.kind)
+        assert sp.tier in TIERS, (name, sp.tier)
+        assert 0 < sp.thick <= 1.5
         assert 0 <= sp.look.rim <= 1 and 0 <= sp.look.interior <= 1
 
 

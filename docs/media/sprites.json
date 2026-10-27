@@ -10,49 +10,320 @@
    "row": 0,
    "um_per_px": 2.1484,
    "length_um": 220,
-   "role": "prey/grazer"
+   "role": "prey/grazer",
+   "tier": "ciliate",
+   "prey": [
+    "bacteria"
+   ]
   },
   "didinium": {
    "row": 1,
    "um_per_px": 1.3672,
    "length_um": 140,
-   "role": "predator of Paramecium"
+   "role": "predator of Paramecium",
+   "tier": "ciliate",
+   "prey": [
+    "paramecium",
+    "blepharisma",
+    "tetrahymena"
+   ]
   },
   "stentor": {
    "row": 2,
    "um_per_px": 8.7891,
    "length_um": 900,
-   "role": "sessile filter feeder"
+   "role": "sessile filter feeder",
+   "tier": "ciliate",
+   "prey": [
+    "bacteria",
+    "chlamydomonas",
+    "tetrahymena",
+    "halteria"
+   ]
   },
   "rotifer": {
    "row": 3,
    "um_per_px": 3.125,
    "length_um": 320,
-   "role": "filter feeder"
+   "role": "filter feeder",
+   "tier": "ciliate",
+   "prey": [
+    "bacteria",
+    "chlamydomonas"
+   ]
   },
   "lacrymaria": {
    "row": 4,
    "um_per_px": 5.5542,
    "length_um": 110,
-   "role": "predator"
+   "role": "predator",
+   "tier": "ciliate",
+   "prey": [
+    "tetrahymena",
+    "halteria",
+    "chlamydomonas",
+    "euglena"
+   ]
   },
   "dileptus": {
    "row": 5,
    "um_per_px": 3.7109,
    "length_um": 380,
-   "role": "predator"
+   "role": "predator",
+   "tier": "ciliate",
+   "prey": [
+    "paramecium",
+    "tetrahymena",
+    "blepharisma",
+    "halteria",
+    "euglena"
+   ]
   },
   "amoeba": {
    "row": 6,
    "um_per_px": 2.5391,
    "length_um": 260,
-   "role": "engulfer"
+   "role": "engulfer",
+   "tier": "ciliate",
+   "prey": [
+    "bacteria",
+    "chlamydomonas",
+    "diatom",
+    "tetrahymena",
+    "euglena"
+   ]
   },
   "daphnia": {
    "row": 7,
    "um_per_px": 14.6484,
    "length_um": 1500,
-   "role": "big prey"
+   "role": "big prey",
+   "tier": "metazoan",
+   "prey": [
+    "bacteria",
+    "chlamydomonas",
+    "diatom"
+   ]
+  },
+  "bacteria": {
+   "row": 8,
+   "um_per_px": 0.0293,
+   "length_um": 3,
+   "role": "base of the chain",
+   "tier": "microbe",
+   "prey": []
+  },
+  "chlamydomonas": {
+   "row": 9,
+   "um_per_px": 0.1172,
+   "length_um": 12,
+   "role": "alga, grazed",
+   "tier": "microbe",
+   "prey": []
+  },
+  "euglena": {
+   "row": 10,
+   "um_per_px": 0.5859,
+   "length_um": 60,
+   "role": "flagellate, grazed",
+   "tier": "microbe",
+   "prey": []
+  },
+  "diatom": {
+   "row": 11,
+   "um_per_px": 0.5859,
+   "length_um": 60,
+   "role": "alga, grazed",
+   "tier": "microbe",
+   "prey": []
+  },
+  "volvox": {
+   "row": 12,
+   "um_per_px": 3.9062,
+   "length_um": 400,
+   "role": "colonial alga, grazed",
+   "tier": "ciliate",
+   "prey": []
+  },
+  "tetrahymena": {
+   "row": 13,
+   "um_per_px": 0.4883,
+   "length_um": 50,
+   "role": "bacterivore, prey",
+   "tier": "ciliate",
+   "prey": [
+    "bacteria"
+   ]
+  },
+  "halteria": {
+   "row": 14,
+   "um_per_px": 0.293,
+   "length_um": 30,
+   "role": "bacterivore, prey",
+   "tier": "ciliate",
+   "prey": [
+    "bacteria"
+   ]
+  },
+  "coleps": {
+   "row": 15,
+   "um_per_px": 0.5859,
+   "length_um": 60,
+   "role": "predator / scavenger",
+   "tier": "ciliate",
+   "prey": [
+    "tetrahymena",
+    "halteria",
+    "chlamydomonas",
+    "euglena"
+   ]
+  },
+  "euplotes": {
+   "row": 16,
+   "um_per_px": 0.9766,
+   "length_um": 100,
+   "role": "bacterivore, crawler",
+   "tier": "ciliate",
+   "prey": [
+    "bacteria",
+    "chlamydomonas"
+   ]
+  },
+  "blepharisma": {
+   "row": 17,
+   "um_per_px": 1.4648,
+   "length_um": 150,
+   "role": "prey/grazer",
+   "tier": "ciliate",
+   "prey": [
+    "bacteria",
+    "chlamydomonas",
+    "tetrahymena"
+   ]
+  },
+  "vorticella": {
+   "row": 18,
+   "um_per_px": 2.9297,
+   "length_um": 300,
+   "role": "sessile bacterivore",
+   "tier": "ciliate",
+   "prey": [
+    "bacteria",
+    "chlamydomonas"
+   ]
+  },
+  "spirostomum": {
+   "row": 19,
+   "um_per_px": 14.6484,
+   "length_um": 1500,
+   "role": "giant grazer",
+   "tier": "ciliate",
+   "prey": [
+    "bacteria",
+    "chlamydomonas"
+   ]
+  },
+  "actinosphaerium": {
+   "row": 20,
+   "um_per_px": 2.9297,
+   "length_um": 300,
+   "role": "sessile predator",
+   "tier": "ciliate",
+   "prey": [
+    "paramecium",
+    "blepharisma",
+    "tetrahymena",
+    "halteria",
+    "euglena",
+    "chlamydomonas",
+    "rotifer"
+   ]
+  },
+  "cyclops": {
+   "row": 21,
+   "um_per_px": 9.7656,
+   "length_um": 1000,
+   "role": "predator (copepod)",
+   "tier": "metazoan",
+   "prey": [
+    "rotifer",
+    "paramecium",
+    "blepharisma",
+    "tetrahymena",
+    "halteria",
+    "euglena"
+   ]
+  },
+  "ostracod": {
+   "row": 22,
+   "um_per_px": 6.8359,
+   "length_um": 700,
+   "role": "grazer (seed shrimp)",
+   "tier": "metazoan",
+   "prey": [
+    "bacteria",
+    "chlamydomonas",
+    "diatom"
+   ]
+  },
+  "nematode": {
+   "row": 23,
+   "um_per_px": 7.8125,
+   "length_um": 800,
+   "role": "grazer (roundworm)",
+   "tier": "metazoan",
+   "prey": [
+    "bacteria"
+   ]
+  },
+  "tardigrade": {
+   "row": 24,
+   "um_per_px": 3.418,
+   "length_um": 350,
+   "role": "grazer (water bear)",
+   "tier": "metazoan",
+   "prey": [
+    "chlamydomonas",
+    "diatom",
+    "rotifer"
+   ]
+  },
+  "gastrotrich": {
+   "row": 25,
+   "um_per_px": 1.4648,
+   "length_um": 150,
+   "role": "bacterivore",
+   "tier": "metazoan",
+   "prey": [
+    "bacteria"
+   ]
+  },
+  "hydra": {
+   "row": 26,
+   "um_per_px": 24.4141,
+   "length_um": 2500,
+   "role": "top predator",
+   "tier": "metazoan",
+   "prey": [
+    "daphnia",
+    "cyclops",
+    "ostracod",
+    "nematode",
+    "rotifer"
+   ]
+  },
+  "planaria": {
+   "row": 27,
+   "um_per_px": 29.2969,
+   "length_um": 3000,
+   "role": "predator (flatworm)",
+   "tier": "metazoan",
+   "prey": [
+    "nematode",
+    "tardigrade",
+    "rotifer",
+    "ostracod"
+   ]
   }
  }
 }
