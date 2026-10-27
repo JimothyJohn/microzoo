@@ -2,7 +2,17 @@
 
 ## Open questions for Nick
 
-- 2026-10-25 MOG2 absorbs slow or paused swimmers into the background after ~`--history` frames (a sessile rotifer or a resting Paramecium vanishes from detection). Fine for G1; decide at v3 whether to add a static-blob detector or a long-history second subtractor.
+- [x] 2026-10-25 — **Slow or paused swimmers vanish from MOG2** — MOG2 absorbs a swimmer that stops or crawls into the background after ~`--history` frames (a sessile rotifer or a resting Paramecium drops out of detection). Fine for G1; the v3 event rules (Stentor contraction, anchored rotifers) need sessile blobs to persist.
+      needs: a decision at v3, or a real clip showing it matters earlier
+      result: sessile and paused organisms keep a track for the whole run
+      options: static-blob detector on a long-exposure median | second MOG2 with a long history, OR the two masks | accept until v3
+      est: 3h
+      difficulty: med
+      id: slow-swimmers-vanish-from-mog2
+      asked: 2026-10-25
+      by: track.py v1 session
+      answer: accept until v3
+      notes: accepted 2026-10-26; nothing changes in track.py until the v3 event work, where sessile blobs (Stentor, anchored rotifers) force the question
 - [x] 2026-10-25 — **Tracker ID stability on ecosim clips** — track.py covers each Paramecium 0.87–0.94 of frames but the dominant ID holds only 0.17–0.42 (IDs break on avoidance reversals, swimmer bumps, debris merging into the blob). G1 asks for "stable IDs". `tests/test_cli_ecosim.py::test_tracker_follows_every_paramecium_through_the_debris` pins the current number.
   needs: a decision on whether scipy is acceptable on the Pi, or a pure-numpy assignment
   result: IDs survive reversals and bumps; G1 "stable IDs" becomes measurable in the sim before the jar delivers
@@ -19,17 +29,33 @@
   difficulty: low
   answer: keep 80 % and wait for footage
   notes: no change; the v3 rule stays at 80 % until a real contraction is on film
-- [ ] 2026-10-25 — **ID swaps when two swimmers merge into one blob** — with the assignment fixed, what still breaks ids on ecosim clips is a true merge: two Paramecia overlap for ~6 frames, one track takes the merged blob, the other goes unmatched, and at the split the ids come out swapped (seed 11, frames 52–58). Stability on that clip is 0.27–0.63; `tests/test_cli_ecosim.py` pins 0.25.
+- [x] 2026-10-25 — **ID swaps when two swimmers merge into one blob** — with the assignment fixed, what still breaks ids on ecosim clips is a true merge: two Paramecia overlap for ~6 frames, one track takes the merged blob, the other goes unmatched, and at the split the ids come out swapped (seed 11, frames 52–58). Stability on that clip is 0.27–0.63; `tests/test_cli_ecosim.py` pins 0.25.
   needs: a choice of what continuity to trust through a merge
   result: ids survive crossings; G1 "stable IDs" holds on the sim, so the first real clip is judged on biology not tracker luck
   options: carry velocity through the merge (predict both, split by extrapolation) | appearance continuity (area, aspect, intensity histogram per track) | mark merged frames and stitch offline in trackstats | accept until real footage says how often it happens
   est: 4h
   difficulty: high
   depends: tracker-id-stability-on-ecosim-clips
-- 2026-10-25 Hardware path for G2: **A** Pi 5 + Pi Global Shutter Camera first (~$898 through G4; Pi 5 8 GB is $175 today and the GS camera is out of stock at 3 of 4 US resellers) or **B** USB 3 Arducam AR0234 C-mount into the Mac Studio for G2–G4, Pi bought at G5 (~$672 now, ~$980 after the Pi). `hardware/SOURCING.md` §4 recommends B. Not due until G2 passes; it decides $225 today and whether roadmap v1 "Pi capture" runs before or after v2–v3.
+  answer: carry velocity through the merge (predict both, split by extrapolation)
+  notes: done 2026-10-26 (`--merge-ratio 1.5`, default; 0 disables). A matched blob ≥1.5× a track's own area with another track's extrapolation inside it forms a merge group; members coast on their own velocity, are not corrected with the shared centroid, and the split is assigned on the extrapolations. Clean on a head-on crossing (unit test). On the ecosim scenario it does not help (0.25–0.41): the 2D sim makes every overlap a bump, the Paramecium reverses inside the merge, and extrapolation picks the wrong body. Needs depth in the sim to measure; next item.
+- [x] 2026-10-26 — **Give ecosim depth so swimmers can pass over each other** — the chamber is 100–200 µm deep and bodies are 50 µm thick, so most real crossings are pass-overs at different Z with no contact, which is exactly the case the merge rule in track.py is built for. The 2D sim turns every overlap into a bump (avoiding reaction), so the rule cannot be measured and the ID-stability number is pessimistic.
+  needs: a Z coordinate per organism (uniform in the chamber depth, slow random walk), bumps only when |dz| < body thickness, and either no visual change or a mild defocus blur with |z − focal plane| (the focal-sweep 3D route in CLAUDE.md wants that anyway)
+  result: ecosim clips with true pass-overs; `test_tracker_follows_every_paramecium_through_the_debris` measures the merge rule instead of the bump case; a defocus knob the autofocus work (v2) can reuse
+  options: Z for collisions only, no visual effect | Z with defocus blur (sigma from |dz|, depth of field 10–50 µm per CLAUDE.md) | leave 2D and measure the merge rule on real footage at G1
+  est: 3h
+  difficulty: med
+  depends: id-swaps-when-two-swimmers-merge-into-one-blob
+  answer: Z with defocus blur (sigma from abs(dz), depth of field 10–50 µm per CLAUDE.md)
+  notes: done 2026-10-26 (PR #12). `--depth 150 --dof 30 --focus depth/2`; Z uniform at spawn, 20 µm/√s random walk, sessile/anchored fixed, caught prey rides its predator. Bumps and strikes only when |dz| < mean thickness (new `Species.thick`, Paramecium ~51 µm). Per-body Gaussian defocus 0.1 µm sigma per µm beyond the DoF, far bodies drawn first; truth CSV gains `z_um`. `--depth 0` is bit-for-bit the old sim. Stability on the pinned seed 11 went 0.25–0.41 → 0.39–0.82 (floor raised 0.2 → 0.3); seeds 12–13 did not improve, so no trend claimed. New measurable: merge-group tracks coast ~45 µm off during long stacked pass-overs (median error 2.3 → 4.1 px on stacked frames), the next tracker number to attack.
+- [x] 2026-10-25 — **Hardware path for G2: A or B?** — **A** Pi 5 + Pi Global Shutter Camera first (~$898 through G4; Pi 5 8 GB is $175 today and the GS camera is out of stock at 3 of 4 US resellers) or **B** USB 3 Arducam AR0234 C-mount into the Mac Studio for G2–G4, Pi bought at G5 (~$672 now, ~$980 after the Pi). `hardware/SOURCING.md` §4 recommends B. Not due until G2 passes; it decides $225 today and whether roadmap v1 "Pi capture" runs before or after v2–v3.
   needs: your pick, A or B
   result: bom.csv path column filtered, HARDWARE.md §9 updated, roadmap order in CLAUDE.md adjusted if B
   options: A (roadmap as written, dearer today) / B (recommended; Studio captures until G5)
   est: 5 min to decide
   difficulty: low
   depends: G2 deliverable (three clips where species can't be told)
+  id: g2-hardware-path
+  asked: 2026-10-25
+  by: hardware BOM session
+  answer: Focus on a used eBay option, I have a good scanner to look for good deals on nice equipment. Especially if it has a great resale value then I'll spend whatever I want on it.
+  notes: done 2026-10-26. Neither A nor B: Path B's order (Studio through G4, Pi at G5) with the scope and camera sourced used via the scanner and resale value as the price rule. SOURCING.md §1/§4 rewritten with an eBay watchlist (BX/Eclipse stands, Basler/FLIR/Daheng USB3 cameras, what to check before paying), HARDWARE.md §2/§3/§9/§10 updated, bom.csv path column now both/floor/watch/pi with two watch rows, index.html cards, CLAUDE.md sourcing line. Camera sensor/SDK facts are flagged unverified in §6.

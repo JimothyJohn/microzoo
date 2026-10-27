@@ -36,6 +36,8 @@ Tier 1 target (~$560–730): used trinoc compound scope $300–450; darkfield st
 
 Tier 2 only if cropping bites: 5–12 MP USB3 global-shutter machine-vision cam (Daheng/Basler/FLIR) into the Mac Studio, $300–600.
 
+Sourcing policy (Nick, 2026-10-26): scope and camera come used off eBay through Nick's deal scanner; parts with strong resale value (Olympus BX / Nikon Eclipse class stands, Basler/FLIR cameras) have no budget ceiling, so a Tier 2 camera is fair at G2 if it comes used. The gate ladder still decides *when*. Watchlist: `hardware/SOURCING.md` §4.
+
 Key numbers (AR0234, 3 µm px, 1920 wide, 0.5x reducer): 4x → 1.5 µm/px, 2.9×1.8 mm field, Paramecium at 1 mm/s = 11 px/frame at 60 fps. 10x → 0.6 µm/px, 1.15×0.7 mm. Keep exposure ≤2 ms for ≤1 px motion blur.
 
 ## Software
@@ -46,6 +48,7 @@ Roadmap:
 - v1 Pi capture: `picamera2` 1920×1200 @ 60 fps, 2 ms exposure, ring buffer; same pipeline live.
 - v2 Autofocus: Laplacian variance on the follow-crop, TMC2209 over UART, PID + deadband, hill-climb on startup, ~2 µm/s rate limit.
 - v3 Events from geometry alone (no ML): two tracks converge and one vanishes = capture; sessile blob area drops 80% in one frame = Stentor contraction. Trigger 10 s pre-roll clips. Subtract per-frame median motion of all tracks before calling anything "swimming" (convection). Optional single open-loop stage nudge to re-center a target near frame edge during an event; not a servo.
+- Sim food chain (exists): every species carries `prey` + `prey_ratio`; one feeding path (graze in a frame, or capture/ingest/digest) serves swimmers, hunters, sessile bells and traps (heliozoa, Hydra). `ecosim.py --preset` picks the rung; `species.food_web()` lists the edges.
 - v4 Species: YOLO fine-tune on own crops (~500 labeled), runs offline on Mac Studio. Ecology dashboard: who eats whom, encounter rates, speed distributions. Optional PlanktoScope census layer.
 - 3D: focal sweep (Z ramp 10–20 Hz, sharpness-per-track gives Z), then lensless holography (bare sensor + point LED, Fresnel back-propagation).
 
@@ -62,6 +65,30 @@ Roadmap:
 | Amoeba | engulfer | 100–500 µm | timelapse only |
 | Hydra | top predator | 1–10 mm | eats Daphnia; needs deep chamber |
 | Daphnia/copepods | big prey | 1–3 mm | jump 10+ mm/s; TOMLOV territory |
+
+Rungs below and above that cast, all in `species.py` with prey lists (`ecosim.py --preset microbe|ciliate|metazoan` sets the cast and µm/px for each view):
+
+| Organism | Tier | Role | Size | Notes |
+|---|---|---|---|---|
+| Bacteria | microbe | base of the chain | 2–5 µm | run-and-tumble; a point at 4x, needs 40x |
+| Chlamydomonas | microbe | alga, grazed | 10–15 µm | two flagella, jerky breaststroke |
+| Euglena | microbe | flagellate, grazed | 50–70 µm | one flagellum, red eyespot, corkscrews |
+| Diatom | microbe | alga, grazed | 20–100 µm | glass pillbox, glides on the glass |
+| Tetrahymena | ciliate | bacterivore, prey | 40–60 µm | the lab bacterivore; Coleps, Lacrymaria, Dileptus take it |
+| Halteria | ciliate | bacterivore, prey | 25–35 µm | jumping ciliate: 10 body lengths in one frame |
+| Coleps | ciliate | predator / scavenger | 50–80 µm | armoured barrel, takes small ciliates whole |
+| Euplotes | ciliate | bacterivore, crawler | 80–150 µm | walks on cirri over the glass, stop-start |
+| Blepharisma | ciliate | prey/grazer | 100–200 µm | pink slipper, slower than Paramecium |
+| Vorticella | ciliate | sessile bacterivore | 60 µm bell, 250 µm stalk | stalk coils in ms, re-extends in s |
+| Spirostomum | ciliate | giant grazer | 1–3 mm | worm-like, snaps to a quarter length when touched |
+| Actinosphaerium | ciliate | sessile predator | 200–500 µm | heliozoan sun; swimmers stick to its rays |
+| Volvox | ciliate | colonial alga | 300–500 µm | rolling hollow sphere |
+| Cyclops | metazoan | predator (copepod) | ~1 mm | hops, grabs rotifers and ciliates |
+| Ostracod | metazoan | grazer (seed shrimp) | 0.5–1 mm | two valves, steady swimmer |
+| Nematode | metazoan | grazer (roundworm) | 0.5–1 mm | S-curve thrash; Hydra and planarians take it |
+| Tardigrade | metazoan | grazer (water bear) | 300–500 µm | eight legs, clambers over debris |
+| Gastrotrich | metazoan | bacterivore | 100–300 µm | bowling-pin glider |
+| Planaria | metazoan | predator (flatworm) | 3–10 mm | glides on cilia, takes worms and rotifers |
 
 Culture: still water + submerged plant squeezings + sediment + surface film, two-thirds full, lid loose, one boiled rice/wheat grain, windowsill. Bacteria bloom days 1–3 (cloudy, sulfur smell), Paramecium bloom days 5–10 (glittering cloud under side light), predators days 10–20. Milky white = overfed; pour half, top up with pond water.
 
