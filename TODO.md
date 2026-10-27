@@ -1,5 +1,36 @@
 # TODO
 
+## Hand-offs for Nick
+
+- [ ] 2026-10-26 — **Promote dev → master so the playground and docs/CNAME publish** — GitHub Pages serves master:/docs. The playground (docs/playground.html), the index card and docs/CNAME (microzoo.advin.io) sit on dev once the playground PR merges; nothing is live until master moves.
+  needs: the playground PR merged into dev
+  result: https://jimothyjohn.github.io/microzoo/playground.html is live and Pages knows the custom domain file
+  est: 5m
+  difficulty: low
+  id: promote-dev-playground
+  asked: 2026-10-26
+  by: playground session
+  notes: your merge, by hand (dev → master is never automated)
+- [ ] 2026-10-26 — **DNS: microzoo.advin.io → GitHub Pages** — Route 53 CNAME in the advin.io zone (Z039212425BG1MHVPYWDN) pointing at jimothyjohn.github.io. UPSERT, waits for INSYNC, verifies at the zone's own name server.
+  needs: aws CLI with Route 53 write access to advin.io
+  result: `dig microzoo.advin.io CNAME` answers jimothyjohn.github.io
+  est: 2m
+  difficulty: low
+  id: dns-microzoo-advin
+  asked: 2026-10-26
+  by: playground session
+  notes: `! ./scripts/dns-microzoo-advin.sh`
+- [ ] 2026-10-26 — **GitHub Pages custom domain + HTTPS** — sets the Pages cname to microzoo.advin.io through the API, then polls until GitHub has issued the certificate and switches https_enforced on (up to 30 min; re-run until it prints ok).
+  needs: DNS in place, docs/CNAME on master
+  result: https://microzoo.advin.io serves the site; the github.io URL redirects
+  est: 5m plus the certificate wait
+  difficulty: low
+  depends: dns-microzoo-advin, promote-dev-playground
+  id: pages-custom-domain
+  asked: 2026-10-26
+  by: playground session
+  notes: `! ./scripts/pages-custom-domain.sh`
+
 ## Open questions for Nick
 
 - [x] 2026-10-25 — **Slow or paused swimmers vanish from MOG2** — MOG2 absorbs a swimmer that stops or crawls into the background after ~`--history` frames (a sessile rotifer or a resting Paramecium drops out of detection). Fine for G1; the v3 event rules (Stentor contraction, anchored rotifers) need sessile blobs to persist.

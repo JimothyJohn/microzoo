@@ -53,6 +53,10 @@ pre{font-family:var(--mono);font-size:.85em;background:var(--panel);border:1px s
 .card .txt b{display:block;font-family:var(--display);font-size:17px;margin-bottom:3px}
 .card .txt span{color:var(--muted);font-size:14px}
 .card .txt i{display:block;margin-top:8px;font-style:normal;font-family:var(--mono);font-size:12px;color:var(--accent-ink);letter-spacing:.06em;text-transform:uppercase}
+.card.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);border-color:var(--accent)}
+.card.hero .art{height:auto;min-height:190px}
+.card.hero .txt b{font-size:21px}
+@media (max-width:620px){.card.hero{grid-template-columns:1fr}.card.hero .art{height:170px}}
 .callout{border-left:3px solid var(--accent);padding:8px 12px;background:var(--panel);border-radius:0 6px 6px 0;max-width:none}
 .callout.warn{border-color:var(--warn)}
 .scroll{overflow-x:auto;min-width:0}
@@ -108,12 +112,18 @@ footer{color:var(--muted);font-size:14px;border-top:1px solid var(--line);paddin
     <a href="#tracker">Tracker on synthetic swimmers</a>
     <a href="#cast">The cast</a>
     <a href="#design">Design</a>
+    <a href="playground.html"><b>Playground</b></a>
     <a href="sprites.html">The cast, animated</a>
     <a href="tank.html">3D tank</a>
     <a href="rig.html">Darkfield rig geometry</a>
     <a href="https://github.com/JimothyJohn/microzoo">Code</a>
   </nav>
 </header>
+
+<a class="card hero" href="playground.html">
+  <div class="art"><img src="media/playground.jpg" alt="The playground: a Didinium in focus, Paramecia and a Stentor blurred above and below the focal plane, debris glowing in the current" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></div>
+  <div class="txt"><b>Build your own drop of pond water</b><span>Tap creatures into a darkfield chamber and watch them hunt, graze, contract and drift, with the focus plane, depth of field and glow under your thumb. The same numbers the tracker is tested against, live, no video.</span><i>playground · open →</i></div>
+</a>
 
 <div class="strip">
   <div class="stat"><b>G0</b><span>current gate · culture</span></div>

@@ -51,6 +51,8 @@ Roadmap:
 - v4 Species: YOLO fine-tune on own crops (~500 labeled), runs offline on Mac Studio. Ecology dashboard: who eats whom, encounter rates, speed distributions. Optional PlanktoScope census layer.
 - 3D: focal sweep (Z ramp 10–20 Hz, sharpness-per-track gives Z), then lensless holography (bare sensor + point LED, Fresnel back-propagation).
 
+Site: `docs/` is published by GitHub Pages from `master:/docs` at https://microzoo.advin.io (Route 53 CNAME + Pages custom domain, scripts in `scripts/`). `docs/playground.html` is the interactive sim: a JS port of the ecosim behaviours over the darkfield sprite atlas, per-species colour, Z defocus as a mipmap bias against a focus plane, additive glow; `?preset=hunt&hud=1&focus=60&dof=20&t=15` is a shareable state. Keep its numbers equal to `species.py` when those change.
+
 ## Biology cheat sheet
 
 | Organism | Role | Size | Notes |
