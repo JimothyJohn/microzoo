@@ -29,10 +29,17 @@ else
   aws route53 wait resource-record-sets-changed --id "$CHANGE_ID"
 fi
 
-# Verify against the zone's own name servers (public resolvers may lag the TTL).
+# Verify: the zone's own name server first (fresh, ignores caches), then the system resolver.
+# Some networks block direct queries to outside name servers, so a timeout there is not fatal;
+# dig's failure must not kill the script silently under `set -e -o pipefail`.
 NS=$(aws route53 get-hosted-zone --id "$ZONE_ID" --query 'DelegationSet.NameServers[0]' --output text)
-ANSWER=$(dig +short @"$NS" "$HOST" CNAME | sed 's/\.$//')
-if [[ "$ANSWER" != "$TARGET" ]]; then
-  echo "verification failed: $HOST -> '$ANSWER' at $NS (wanted $TARGET)" >&2; exit 1
-fi
-echo "ok: $HOST CNAME $TARGET (via $NS)"
+for via in "$NS" ""; do
+  ANSWER=$(dig +short +time=3 +tries=1 ${via:+@"$via"} "$HOST" CNAME 2>/dev/null | sed 's/\.$//' || true)
+  label=${via:-system resolver}
+  if [[ "$ANSWER" == "$TARGET" ]]; then
+    echo "ok: $HOST CNAME $TARGET (via $label)"; exit 0
+  fi
+  echo "no answer for $HOST at $label (got '${ANSWER}')" >&2
+done
+echo "verification failed: $HOST does not resolve to $TARGET yet" >&2
+exit 1
