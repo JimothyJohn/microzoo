@@ -6,13 +6,13 @@ Owner: Nick. Background: EE, motion control, embedded, CAD, 3D printing (Bambu H
 
 ## Core design decisions (do not relitigate without new evidence)
 
-- **Digital tracking, not a motorized XY stage.** Moving the stage sloshes the chamber; the organism rides the water; the controller chases its own disturbance. Instead: low magnification on a global-shutter sensor, track every blob, crop a follow-window in software. Zero lag, many targets at once.
-- **Only Z is motorized.** Autofocus on image sharpness (variance of Laplacian), slow PID with a deadband wider than depth of field, rate-limited so the image never visibly breathes.
+- **The Meca500 is the stage: XY follow and Z focus on one device** (Nick, 2026-10-28; replaces "digital tracking, not a motorized XY stage" and "only Z is motorized"). The slosh argument holds only for open wells: a sealed 150 µm spacer chamber relaxes viscously in 2.3 ms and its walls forbid net flow, so the water rides the slide (`stagesim.py table`). Software still tracks every blob at low magnification on a global-shutter sensor; the arm jogs the slide to keep the chosen target in the field (~50 ms latency, Paramecium lags ~140 px at 10x), and the digital follow-crop rides on top for zero-lag framing. Bursts (Halteria hops, Cyclops/Daphnia jumps) are lost at 10x: widen the view, don't chase. Not yet measured: acceleration limit, flex mode, standstill jitter; `stage.py`'s `SimParams` are assumptions until `meca-smoke` and a tracked-particle settle/jitter clip replace them.
+- **Autofocus drives the arm's Z.** Image sharpness (variance of Laplacian), slow PID with a deadband wider than depth of field, rate-limited so the image never visibly breathes. 5 µm repeatability is 7% of the 4x DoF and 45% of the 10x DoF: fine for holding focus; 40x Z-stacks need step accuracy measured on the rig. The fine-focus-knob stepper is retired.
 - **Darkfield, not phase contrast.** Transparent protists glow on black at 4x–10x with a $20 condenser stop. Phase is a 10x-and-up feature costing $500+ more. Oblique illumination is the fallback if darkfield at 10x is too dim.
 - **Contrast beats magnification.** Working magnification is 4x (tracking view, ~3 mm field) and 10x (follow view, ~1 mm field). 40x is for stationary subjects only.
 - **Keep the Pi dumb.** Capture, detect, track, clip, focus run on the Pi 5 deterministically. Anything needing a model or a second look runs on the Mac Studio over the network.
-- **Sample chamber matters more than optics.** 100–200 µm spacer-tape chamber or a well slide, vaseline-sealed, LED only (halogen cooks samples and causes convection that reads as drift). No methylcellulose for ecology footage; it changes behavior.
-- **Tilt/roll does not give 3D** at these scales (DoF 10–50 µm vs 150 µm chamber; no perspective in a microscope image). 3D routes are focal sweep (free, uses the Z motor) and lensless digital holography (side rig, ~$60). Light-field and stereo rejected.
+- **Sample chamber matters more than optics.** 100–200 µm spacer-tape chamber, vaseline-sealed (sealed is mandatory now the slide moves; open wells slosh and are for static shots only), LED only (halogen cooks samples and causes convection that reads as drift). No methylcellulose for ecology footage; it changes behavior.
+- **Tilt/roll does not give 3D** at these scales (DoF 10–50 µm vs 150 µm chamber; no perspective in a microscope image). 3D routes are focal sweep (free, uses the arm's Z) and lensless digital holography (side rig, ~$60). Light-field and stereo rejected.
 - **PlanktoScope rejected** as the primary instrument: it's a flow-through census imager, nothing hunts anything. Possibly a v4 species-count layer.
 
 ## Gates (purchases are unlocked by deliverables, never by enthusiasm)
@@ -22,7 +22,7 @@ Owner: Nick. Background: EE, motion control, embedded, CAD, 3D printing (Bambu H
 | G0 Culture | Jar of local pond water + one grain of rice/wheat, alive 10 days, visible swimmers | Nothing. Precondition for everything. |
 | G1 Tracker on TOMLOV | Real organisms under the owned TOMLOV TM3K-3D (backlit, top light off), `track.py` produces `_tracks.mp4` with stable IDs, a CSV, and a follow clip worth watching | Nothing yet |
 | G2 Resolution ceiling | Three clips where something clearly happened but species can't be told | Used trinocular compound scope (Olympus CH-2/CH30, Nikon Alphaphot), then Pi 5 + global-shutter cam + 0.5x C-mount reducer |
-| G3 One hour tracked | Unattended 60 fps hour, ≥20 tracks >5 s | Z stepper (NEMA 11 + TMC2209) |
+| G3 One hour tracked | Unattended 60 fps hour, ≥20 tracks >5 s | Nothing to buy: the owned Meca500 replaces the Z stepper |
 | G4 Autofocus holds | Swimming Paramecium at 10x held 60 s, sharpness-vs-time plot | Event detection work |
 | G5 First unattended capture | 48 h run files a predator/prey clip nobody watched happen | Tier 2 camera, focal-sweep 3D, holography side rig |
 
@@ -30,9 +30,9 @@ Current status: G0 in progress (sample collected 2026-10-25, Bedford TX park). T
 
 ## Hardware
 
-Owned: TOMLOV TM3K-3D digital scope (reflected/backlit, ~10–20 µm resolution floor, HDMI/USB out; good for Daphnia/copepods/rotifers, cannot resolve ciliate anatomy), Bambu H2S, Mac Studio, robots/motion control gear.
+Owned: TOMLOV TM3K-3D digital scope (reflected/backlit, ~10–20 µm resolution floor, HDMI/USB out; good for Daphnia/copepods/rotifers, cannot resolve ciliate anatomy), Bambu H2S, Mac Studio, Meca500 R3 arm (holds the slide; `stage.py`, text API over TCP 10000), robots/motion control gear.
 
-Tier 1 target (~$560–730): used trinoc compound scope $300–450; darkfield stops printed; 23.2 mm→C-mount 0.5x reducer $40–75; 3–5 W LED + CC driver $25–40; Pi 5 8 GB kit ~$110; Arducam AR0234 2.3 MP global shutter ~$100 (or official Pi GS cam IMX296 ~$50); NEMA 11 + TMC2209 + printed coupler ~$40; chamber consumables ~$30.
+Tier 1 target (~$520–690): used trinoc compound scope $300–450; darkfield stops printed; 23.2 mm→C-mount 0.5x reducer $40–75; 3–5 W LED + CC driver $25–40; Pi 5 8 GB kit ~$110; Arducam AR0234 2.3 MP global shutter ~$100 (or official Pi GS cam IMX296 ~$50); chamber consumables ~$30.
 
 Tier 2 only if cropping bites: 5–12 MP USB3 global-shutter machine-vision cam (Daheng/Basler/FLIR) into the Mac Studio, $300–600.
 
@@ -46,11 +46,11 @@ Key numbers (AR0234, 3 µm px, 1920 wide, 0.5x reducer): 4x → 1.5 µm/px, 2.9�
 
 Roadmap:
 - v1 Pi capture: `picamera2` 1920×1200 @ 60 fps, 2 ms exposure, ring buffer; same pipeline live.
-- v2 Autofocus: Laplacian variance on the follow-crop, TMC2209 over UART, PID + deadband, hill-climb on startup, ~2 µm/s rate limit.
-- v3 Events from geometry alone (no ML): two tracks converge and one vanishes = capture; sessile blob area drops 80% in one frame = Stentor contraction. Trigger 10 s pre-roll clips. Subtract per-frame median motion of all tracks before calling anything "swimming" (convection). Optional single open-loop stage nudge to re-center a target near frame edge during an event; not a servo.
+- v2 Autofocus: Laplacian variance on the follow-crop, Z through `stage.py` (Meca500), PID + deadband, hill-climb on startup, ~2 µm/s rate limit.
+- v3 Events from geometry alone (no ML): two tracks converge and one vanishes = capture; sessile blob area drops 80% in one frame = Stentor contraction. Trigger 10 s pre-roll clips. Subtract per-frame median motion of all tracks before calling anything "swimming" (convection). Keeping the target in the field is the arm's follow loop (`stagesim.py run --mode follow`), not the event layer.
 - Sim food chain (exists): every species carries `prey` + `prey_ratio`; one feeding path (graze in a frame, or capture/ingest/digest) serves swimmers, hunters, sessile bells and traps (heliozoa, Hydra). `ecosim.py --preset` picks the rung; `species.food_web()` lists the edges.
-- v4 Species: YOLO fine-tune on own crops (~500 labeled), runs offline on Mac Studio. Ecology dashboard: who eats whom, encounter rates, speed distributions. Optional PlanktoScope census layer.
-- EcoTaxa bridge (exists): `ecotaxa.py export` turns a tracked clip into an EcoTaxa import bundle (one object per track, several frames per object, the 33 PlanktoScope morphometrics on OpenCV with scikit-image semantics, plus speed/turn/tortuosity columns); `ecotaxa.py pull` reads public projects. Reference: project 2748, the original PlanktoScope dataset (`references/ecotaxa_2748_summary.json`). Labelling for v4 can happen on EcoTaxa's UI and classifier.
+- v4 Species: crops labelled on EcoTaxa (private project, Nick 2026-10-28; `ecotaxa.py` gains `push` and `annotations` once the account exists), then YOLO fine-tune on those labels (~500), offline on the Mac Studio. Ecology dashboard: who eats whom, encounter rates, speed distributions. Optional PlanktoScope census layer.
+- EcoTaxa bridge (exists): `ecotaxa.py export` turns a tracked clip into an EcoTaxa import bundle (one object per track, several frames per object, the 33 PlanktoScope morphometrics on OpenCV with scikit-image semantics, plus speed/turn/tortuosity columns); `ecotaxa.py pull` reads public projects. Reference: project 2748, the original PlanktoScope dataset (`references/ecotaxa_2748_summary.json`). v4 labelling happens on EcoTaxa's UI and classifier.
 - 3D: focal sweep (Z ramp 10–20 Hz, sharpness-per-track gives Z), then lensless holography (bare sensor + point LED, Fresnel back-propagation).
 - Sim optics + multi-focal (exists): `optics.py` is a wave-optics defocus PSF from NA/immersion/λ (Airy in focus, ringed disc with OTF zeros out of it); `ecosim.py --na --planes N --plane-spacing` renders N synchronised cameras plus an all-in-focus oracle; `edof.py` fuses by per-pixel selection (no synthesised detail) and gives Z per body, scored against truth. Use it to size a beam-splitter rig before buying one. Learned EDOF that fills detail at OTF zeros is a prior, not a measurement; label it if it ever ships in footage.
 
