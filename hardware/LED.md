@@ -14,8 +14,9 @@ backlight gives brightfield. A tab takes a plate to the Meca500 flange. Source:
 |---|---|---|
 | LED type | WS2812B IP67 **tape** | 12 mm bullet pixels *don't fit*: see Geometry |
 | `STRIP_W`, `STRIP_T`, `STRIP_PITCH` | 12, 4.5, 10 mm (100/m) | calipers across and through the silicone sleeve; count LEDs over 10 cm |
-| `DISH_OD`, `DISH_FLOOR_T`, `DISH_FOOT`, `DISH_H` | 60, 1.0, 0, 15 | calipers on the **base**, not the lid: "60 × 15" is often the lid, the base a few mm smaller. `DISH_FOOT` is the recess under the floor, if any |
-| `LENS_D` | 35 mm | lens nose diameter: it must dip inside the dish (inner ⌀ 58) |
+| `DISH_FLOOR_T`, `DISH_FOOT`, `DISH_H` | 1.0, 0, 15 | calipers. `DISH_FOOT` is the recess under the floor, if any. **The floor thickness sets the water height**: it's the one dish number that must be right |
+| `DISH_OD_MIN`..`MAX` | 54..61 | no need to measure: the seat takes any base in that range. It stands on a flat land, and a 30° lead-in on the lip guides it. A cone would centre it but set its height by its diameter. A small dish can sit 3.8 mm off centre, which the optics don't care about |
+| `LENS_D` | 35 mm | lens nose diameter: it must dip inside the smallest dish even pushed off centre |
 | `BACKLIGHT_D` | 30 mm | lit window in the TOMLOV base |
 | `MECA_BCD`, `MECA_HOLES`, `MECA_PIN_*` | unset | Meca500 flange drawing or calipers; the adapter refuses to render without it |
 
@@ -73,7 +74,7 @@ z = 0 is the TOMLOV stage. Defaults, checked against every assert in the `.scad`
 | `base` | backlight cutout with an insert counterbore, conical strip land, cable slot, M3 heat-set tab |
 | `seat` | flat ring: the dish stands on its inner 2.5 mm, the rest roofs the LEDs. Its rim drops over the base wall to centre it. Prints flat |
 | `stop` | black insert, darkfield |
-| `diffuser` | 0.6 mm window in white/natural PLA: diffused TOMLOV backlight, brightfield |
+| `diffuser` | the stop's disc in translucent filament: diffused TOMLOV backlight, brightfield |
 | `meca_adapter` | plate from the tab to the flange |
 
 Render with `./scripts/cad-render.sh`: STLs plus a cut-away `data/cad/dish_ring_section.png`
