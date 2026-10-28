@@ -328,7 +328,13 @@ def run(a: argparse.Namespace) -> int:
     except ValueError as e:
         print(f"stagesim: {e}", file=sys.stderr)
         return 2
-    ww, wh = a.world
+    if a.world:
+        ww, wh = a.world
+    else:  # room to roam: the tiles plus a field, and never less than 1.5 fields or 4x3 mm
+        fw, fh = view_opt.field_um
+        nx, ny = a.tiles if a.mode == "scan" else (0, 0)
+        ww = max(4000.0, 1.5 * fw, (nx + 1) * fw)
+        wh = max(3000.0, 1.5 * fh, (ny + 1) * fh)
     # ecosim's default cast is dense for a 960x720 frame at 3 µm/px
     cast = scale_cast(base, ww * wh / (960 * 720 * 9.0))
     if a.mode == "follow" and cast.get(a.target, 0) == 0:
@@ -527,7 +533,7 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--mode", choices=("hold", "scan", "follow", "zsweep"), default="follow")
     r.add_argument("--objective", choices=sorted(VIEWS), default="10x")
     r.add_argument("--size", type=lambda s: _pair(s, int), help="render WxH (default half sensor)")
-    r.add_argument("--world", type=_pair, default=(4000.0, 3000.0), help="slide patch, µm")
+    r.add_argument("--world", type=_pair, help="slide patch WxH, µm (default: sized to the view)")
     r.add_argument("--cast", help="ecosim cast for a 2.9x2.2 mm frame; scaled to --world")
     r.add_argument("--target", default="paramecium", help="follow: species to follow")
     r.add_argument("--kp", type=float, default=4.0, help="follow: 1/s")
@@ -554,7 +560,10 @@ def main(argv: list[str] | None = None) -> int:
         or a.acc <= 0
         or not 0 < a.exposure < 1
         or a.latency < 0
-        or (a.cmd == "run" and (a.frames < 1 or a.fps <= 0 or a.depth <= 0 or min(a.world) <= 0))
+        or (
+            a.cmd == "run"
+            and (a.frames < 1 or a.fps <= 0 or a.depth <= 0 or min(a.world or (1, 1)) <= 0)
+        )
     )
     if bad:
         print("stagesim: speed, acc, exposure, fps, depth, world must be > 0", file=sys.stderr)
