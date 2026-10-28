@@ -285,7 +285,10 @@ class HoldBackground:
         rate = np.full(g.shape, base, np.float32)
         on = fg > 0
         rate[on] = max(base, self.alpha_still)
-        rate[on & (hold > 0)] = 0.0
+        # The whole held box is frozen, not just its foreground: a focus jump that dims
+        # the animal drops its rim under threshold, and a rim that learns at the boost
+        # rate shrinks the blob, then the box, until the body is gone (water flea clip).
+        rate[hold > 0] = 0.0
         d = g - bg
         # The variance learns wherever the mean does, foreground included: that is how a
         # flickering debris edge raises its own bar. Gating it to background pixels was
