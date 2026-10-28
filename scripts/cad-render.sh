@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Render every printable part of a cad/*.scad file to STL, plus the echo report.
-# Needs: OpenSCAD on PATH or at /Applications/OpenSCAD.app (Homebrew's cask is disabled;
-# install from openscad.org). Idempotent: overwrites data/cad/<file>_<part>.stl.
+# Needs: OpenSCAD on PATH, $OPENSCAD, or an OpenSCAD*.app in /Applications or a mounted
+# DMG (Homebrew's cask is disabled; get it from openscad.org).
+# Idempotent: overwrites data/cad/<file>_<part>.stl.
 # Usage: scripts/cad-render.sh [cad/dish_ring.scad] [part ...]
 #        scripts/cad-render.sh cad/dish_ring.scad meca_adapter   # once MECA_BCD is set
 set -euo pipefail
@@ -15,9 +16,15 @@ if [ ${#parts[@]} -eq 0 ]; then
   parts=(base seat stop diffuser)
 fi
 
-scad="$(command -v openscad || true)"
-if [ -z "$scad" ] && [ -x /Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD ]; then
-  scad=/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD
+scad="${OPENSCAD:-$(command -v openscad || true)}"
+if [ -z "$scad" ]; then
+  # the macOS app, including versioned names (OpenSCAD-2021.01.app) and a mounted DMG
+  for app in /Applications/OpenSCAD*.app ~/Applications/OpenSCAD*.app /Volumes/OpenSCAD*/OpenSCAD*.app; do
+    if [ -x "$app/Contents/MacOS/OpenSCAD" ]; then
+      scad="$app/Contents/MacOS/OpenSCAD"
+      break
+    fi
+  done
 fi
 if [ -z "$scad" ]; then
   echo "cad-render: OpenSCAD not found (install from https://openscad.org)" >&2
@@ -39,4 +46,12 @@ for p in "${parts[@]}"; do
   fi
 done
 grep -h "ECHO" "$out/${stem}_${parts[0]}.log" || true
+# a cut-away preview (ghosts included) to check the fit by eye, if the file has one
+if grep -q '"section"' "$src"; then
+  png="$out/${stem}_section.png"
+  if "$scad" -o "$png" -D 'part="section"' --imgsize=1600,900 --projection=o \
+      --camera=0,0,10,90,0,0,260 --colorscheme=Tomorrow "$src" 2>/dev/null; then
+    echo "ok   $png"
+  fi
+fi
 exit "$fail"

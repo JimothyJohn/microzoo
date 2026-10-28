@@ -1,4 +1,4 @@
-// dish_ring.scad: 50 mm Petri dish riser + WS2812 darkfield ring for the TOMLOV TM3K-3D,
+// dish_ring.scad: 60 mm Petri dish riser + WS2812 darkfield ring for the TOMLOV TM3K-3D,
 // with a backlight cutout and a tab for a Meca500 adapter. See hardware/LED.md.
 //
 // Parametrized on LENS_Z = 17.91 mm: the TOMLOV lens bottom above the stage surface with
@@ -24,7 +24,7 @@ WATER_GAP = 1.0;     // lens bottom to water surface; meniscus wicks onto the le
 WATER_DEPTH = 2.0;   // water column in the dish
 
 /* [Dish: MEASURE with calipers] */
-DISH_OD = 50.0;      // outer diameter where it stands
+DISH_OD = 60.0;      // outer diameter where it stands (Nick: 60 mm dishes)
 DISH_WALL = 1.0;
 DISH_FLOOR_T = 1.0;  // floor thickness
 DISH_FOOT = 0.0;     // floor underside above the ring it stands on (0 for a flat-bottom dish)
@@ -35,11 +35,14 @@ LENS_D = 35.0;       // MEASURE: lens nose diameter at its bottom (must dip insi
 BACKLIGHT_D = 30.0;  // MEASURE: lit window in the TOMLOV base
 
 /* [LEDs: WS2812B tape. 12 mm bullet pixels do not fit under a dish this low; see LED.md] */
-STRIP_W = 10.0;      // MEASURE: 10 for most 60/m tape, 12 for 144/m
-STRIP_T = 3.0;       // tape + adhesive (+ silicone sleeve if not stripped)
-STRIP_PITCH = 1000 / 60;  // mm per LED: 1000/30, 1000/60, 1000/144
-LED_R = 31.0;        // radius of the LED faces
-LED_Z = 6.2;         // height of the LED centres
+STRIP_W = 12.0;      // MEASURE: across the IP67 silicone sleeve (bare tape is 10 or 12)
+STRIP_T = 4.5;       // MEASURE: sleeve + tape + LED, back face to front of the sleeve
+STRIP_PITCH = 10.0;  // MEASURE: mm per LED; Nick thinks 100/m
+LED_R = 36.0;        // radius of the LED faces: just outside the dish's seat
+LED_Z = 6.5;         // height of the LED centres (6.4..6.7 fits a 12 mm sleeve at 30 deg)
+LAND_TILT = 30;      // strip normal above horizontal. The chief ray to the sample is
+                     // shallower (`aim`); the LED's ~120 deg beam covers the difference,
+                     // and the tilt is what lets a 12 mm sleeve fit under the seat.
 
 /* [Print] */
 WALL = 2.4;
@@ -84,12 +87,13 @@ r_ins = r_cut + INSERT_LIP;
 seat_ri = DISH_OD / 2 - SEAT_LAND;
 pocket_r = DISH_OD / 2 + CLR;
 
-// strip land: the cone the tape sticks to, normal pointing at the sample
-land_r0 = LED_R + STRIP_T;                       // land radius at LED_Z
-s_bot = (GROOVE_Z - LED_Z) / cos(aim);
-s_top = (wall_top - LED_Z) / cos(aim);
-land_bot_r = land_r0 + s_bot * sin(aim);
-land_top_r = land_r0 + s_top * sin(aim);
+// strip land: the cone the tape sticks to, its normal LAND_TILT above horizontal
+land_r0 = LED_R + STRIP_T / cos(LAND_TILT);      // land radius at LED_Z
+s_bot = (GROOVE_Z - LED_Z) / cos(LAND_TILT);
+s_top = (wall_top - LED_Z) / cos(LAND_TILT);
+land_bot_r = land_r0 + s_bot * sin(LAND_TILT);
+land_top_r = land_r0 + s_top * sin(LAND_TILT);
+off_axis = LAND_TILT - aim;                      // sample's angle off the LED axis
 outer_r = land_top_r + WALL;
 seat_r = outer_r + CLR + 1.6;                    // seat ring OD: its rim drops over the wall
 tab_x = outer_r + 6;                             // first tab hole
@@ -104,6 +108,7 @@ echo(str("seat (dish stands) z = ", seat_z, " mm; water ", floor_top, "..", wate
          " mm; lens ", LENS_Z, " mm"));
 echo(str("LED ring r = ", LED_R, " z = ", LED_Z, ": ", incidence,
          " deg from vertical in air; enters the dish floor at r = ", ray_r_at_floor, " mm"));
+echo(str("strip tilted ", LAND_TILT, " deg; the sample is ", off_axis, " deg off the LED axis"));
 echo(str("base OD ", 2 * outer_r, " mm, height ", wall_top, " (+ seat ", SEAT_T, " + lip ",
          POCKET_H, ")"));
 echo(str(n_strip, " LEDs at ", STRIP_PITCH, " mm pitch on a ", 2 * PI * LED_R,
@@ -116,6 +121,8 @@ assert(LENS_D < dish_id - 2 || seat_z + DISH_H < LENS_Z - 0.5,
        "lens cannot dip into the dish and the rim is above it: shallower dish or a lid");
 assert(s_bot <= -STRIP_W / 2 - 0.2, "strip runs off the bottom of the land: raise LED_Z");
 assert(s_top >= STRIP_W / 2, "strip runs above the wall: lower LED_Z or thin SEAT_T");
+assert(off_axis >= 0 && off_axis < 50, "sample outside the LED beam: check LAND_TILT");
+assert(LED_R > seat_ri + 2, "LEDs under the seat land: move LED_R out");
 
 // ---- parts -------------------------------------------------------------------------
 module cavity_strip() {
@@ -228,4 +235,8 @@ else if (part == "seat") seat();
 else if (part == "stop") insert_stop();
 else if (part == "diffuser") insert_diffuser();
 else if (part == "meca_adapter") meca_adapter();
+else if (part == "section") difference() {  // half cut away, for checking fits by eye
+    assembly();
+    translate([-200, -400, -50]) cube([400, 400, 200]);
+}
 else assembly();
