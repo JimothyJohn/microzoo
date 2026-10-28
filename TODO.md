@@ -30,6 +30,25 @@
   asked: 2026-10-26
   by: playground session
   notes: `! ./scripts/pages-custom-domain.sh`
+- [ ] 2026-10-27 — **Meca500 first contact through stage.py** — reads the pose, then a 100 µm XY square at 1 mm/s and back; never moves Z. Proves the TCP wiring and command strings against the real robot (the tests only ran against an emulator of the protocol).
+  needs: Meca500 on the LAN (MECA_HOST, default 192.168.0.100), activated and homed, clear of the objective, no other client on port 10000; cell clear
+  result: four "asked/got" lines and `meca-smoke: ok`; any `[1xxx]` error code means a command string is wrong and is worth pasting back
+  est: 10m
+  difficulty: low
+  id: meca-smoke
+  asked: 2026-10-27
+  by: meca-stage session
+  notes: `! MECA_HOST=<ip> ./scripts/meca-smoke.sh` (runs here; the robot is a LAN host)
+
+- [ ] 2026-10-27 — **Measure and print the dish ring** — `cad/dish_ring.scad` (darkfield WS2812 ring + 60 × 15 mm dish riser for the TOMLOV) renders clean at working numbers (60 mm dish, IP67 tape 12 × 4.5 mm sleeve, 100/m); a cut-away preview lands in data/cad/dish_ring_section.png. Caliper numbers replace the working ones before printing.
+  needs: calipers on the dish **base** (OD where it stands, floor thickness, foot recess, height), the TOMLOV lens nose diameter and backlight window, the strip sleeve width/thickness and LEDs per 10 cm; numbers into the top of the .scad (list in hardware/LED.md). OpenSCAD 2021.01 is still only on the DMG: drag it to /Applications
+  result: STLs in data/cad/ for base, seat, stop and diffuser; print in matte black PLA (diffuser in white) and the dish's water sits 1 mm under the lens at bottom-out
+  est: 1h
+  difficulty: low
+  id: dish-ring-print
+  asked: 2026-10-27
+  by: wave-psf session
+  notes: `! ./scripts/cad-render.sh` (runs here); add `cad/dish_ring.scad meca_adapter` after MECA_BCD is measured
 
 ## Open questions for Nick
 
@@ -43,6 +62,7 @@
       asked: 2026-10-25
       by: track.py v1 session
       answer: accept until v3
+      notes: 2026-10-27 the real clip arrived: a YouTube rotifer pausing in debris was absorbed by MOG2 in ~25 frames (5+ IDs). `track.py --bg hold` keeps it one ID (opt in, MOG2 still the default). An animal that never moves its own length is still invisible: that is the static-blob option, still v3.
       notes: accepted 2026-10-26; nothing changes in track.py until the v3 event work, where sessile blobs (Stentor, anchored rotifers) force the question
 - [x] 2026-10-25 — **Tracker ID stability on ecosim clips** — track.py covers each Paramecium 0.87–0.94 of frames but the dominant ID holds only 0.17–0.42 (IDs break on avoidance reversals, swimmer bumps, debris merging into the blob). G1 asks for "stable IDs". `tests/test_cli_ecosim.py::test_tracker_follows_every_paramecium_through_the_debris` pins the current number.
   needs: a decision on whether scipy is acceptable on the Pi, or a pure-numpy assignment
@@ -100,3 +120,35 @@
   id: label-v4-on-ecotaxa
   asked: 2026-10-26
   by: ecotaxa bridge session
+- [ ] 2026-10-27 — **Retire "only Z is motorized" now the Meca500 holds the slide?** — CLAUDE.md's first two core decisions reject a motorized XY stage because moving the slide sloshes the chamber and the controller chases its own disturbance. `stagesim.py table` puts numbers on that: a sealed 150 µm spacer chamber relaxes viscously in 2.3 ms and its closed walls forbid net flow, so the water rides the slide; only an open well (≈100 ms lag plus surface waves) sloshes. The arm also replaces the G3 Z stepper. What the sim cannot settle without the rig: acceleration limit, the arm's flex mode and standstill jitter (all assumed), and whether 5 µm repeatability is good enough for Z at 10x (45% of an 11 µm depth of field) and 40x (3× its 1.5 µm).
+  needs: a decision; ideally after meca-smoke and a tracked-particle jitter/settle measurement on the rig
+  result: CLAUDE.md core decisions and gate table rewritten around the arm (XY follow + Z focus on one device, sealed chambers only), or kept with the arm as a slow re-centre/survey tool
+  options: arm is the stage: rewrite the decisions | arm for survey + open-loop re-centre only, digital tracking stays primary | wait for jitter/settle numbers
+  est: 30m for the CLAUDE.md rewrite
+  difficulty: low
+  depends: meca-smoke
+  id: retire-z-only-decision
+  asked: 2026-10-27
+  by: meca-stage session
+- [x] 2026-10-27 — **Which LEDs is the strand: WS2812B tape or 12 mm bullet pixels?** — the dish ring is drawn for tape on a conical land under the dish. A 12 mm bullet pixel needs ~11.5 mm of height aimed that shallow and there is 10.4 mm under the seat (the dish floor has to sit at 14.9 mm for the 17.91 mm lens bottom-out), so bullets need a different layout: pixels outside the dish aimed down-and-in through a side window.
+  needs: a look at the strand (flat tape with LEDs on it, or round 12 mm pixels on wire), and LEDs per metre if tape
+  result: tape: print as drawn after measuring; bullets: I redraw the ring around them
+  options: tape 60/m | tape 144/m | tape 30/m | 12 mm bullet pixels
+  est: 2m
+  difficulty: low
+  id: led-strip-type
+  asked: 2026-10-27
+  by: wave-psf session
+  notes: resolved in chat 2026-10-27: IP67 WS2812B tape, ~100/m (Nick's estimate, unmeasured); ring redrawn for the sleeve with a 30° land tilt
+
+## Tasks
+
+- [ ] 2026-10-27 — **Tune the tracker on the first TOMLOV clips, then decide the default background** — `--bg hold` beat MOG2 on every YouTube clip and on ecosim, but its thresholds (`--thresh 9`, `--hold-edge 2`) were set on third-party footage. Nick (2026-10-27): make it the default only after it is tuned on his own setup.
+  needs: G1 footage: 30 s TOMLOV clips of the Bedford jar with sidecars in data/
+  result: thresholds chosen on our own sensor and illumination; `--bg hold` default (or a reason not to); the clips added to the real-footage tests
+  est: 3h
+  difficulty: med
+  id: tune-bg-on-tomlov
+  asked: 2026-10-27
+  by: bg-hold session
+  notes: start from `uv run python track.py data/<clip>.mp4 --bg hold` vs `--bg mog2`; sweep `--thresh` 9, 16, 36 and `--hold-edge` 0, 1, 2; judge by eye on `_tracks.mp4`, not by track count

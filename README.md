@@ -72,6 +72,17 @@ turn rate and straightness in real units, convection removed by debris consensus
 per-species `--params` file when a truth CSV is present. That is the loop that will one day
 run on real footage instead of the cheat sheet.
 
+Defocus is wave optics (`optics.py`): set the objective with `--na` / `--immersion`, and
+the depth of field follows (λn/NA²). `--planes N --plane-spacing µm` renders N synchronised
+cameras at stepped focus plus an all-in-focus oracle; `edof.py <stem>.json` fuses them by
+per-pixel selection and estimates Z per body, scored against the truth.
+
+```sh
+uv run python ecosim.py --out data/st.mp4 --na 0.25 --um-per-px 0.6 --size 960x600 \
+    --planes 3 --plane-spacing 25 --cast paramecium=2,tetrahymena=8,coleps=2,debris=30
+uv run python edof.py data/st.json   # -> st_edof.mp4, st_depth.mp4, st_edof.json
+```
+
 ## EcoTaxa
 
 [EcoTaxa](https://ecotaxa.obs-vlfr.fr) is the annotation platform plankton imagers feed, the
