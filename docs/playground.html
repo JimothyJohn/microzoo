@@ -78,6 +78,10 @@ select{appearance:none;-webkit-appearance:none;padding-right:26px;background-ima
 </div>
 
 <div class="rail" aria-label="Optics and water">
+  <label><b>Zoom <output id="zoomOut">1×</output></b><input id="zoom" type="range" min="0" max="2" value="0" step="0.01" aria-label="Zoom, logarithmic from 1× to 100×"></label>
+  <div class="row" role="group" aria-label="Zoom by order of magnitude">
+    <button data-zoom="1" aria-pressed="true">1×</button><button data-zoom="10" aria-pressed="false">10×</button><button data-zoom="100" aria-pressed="false">100×</button>
+  </div>
   <label><b>Focus <output id="focusOut">75 µm</output></b><input id="focus" type="range" min="0" max="150" value="75" step="1" aria-label="Focus plane depth in micrometres"></label>
   <label><b>Depth of field <output id="dofOut">30 µm</output></b><input id="dof" type="range" min="6" max="90" value="30" step="1" aria-label="Depth of field in micrometres"></label>
   <label><b>Glow <output id="glowOut">60%</output></b><input id="glow" type="range" min="0" max="100" value="60" step="1" aria-label="Halo glow"></label>
@@ -135,6 +139,9 @@ let W=2900, H=1800;              // chamber in µm; H follows the viewport aspec
 const bodies=[]; let nextId=1;
 let focus=75, dof=30, glow=0.6, conv=30, rate=1, lamp='white', paused=false, hudOn=false, brush=null, follow=null;
 let simT=0; const events=[];
+// View: zoom 1× shows the whole chamber; the window is W/zoom µm wide, centred on (vx,vy).
+const ZMIN=1, ZMAX=100;
+let zoom=1, zoomGoal=1, vx=W/2, vy=H/2, camFollow=false;
 function spawn(name,x,y,z){
   if(bodies.length>=MAX_BODIES){toast('chamber full'); return null;}
   const s=SPECIES[name]; const cv=s.lenCv||0.15;
@@ -287,6 +294,10 @@ atlasImg.onerror=()=>{document.getElementById('fallback').classList.add('on')};
 function fillLayers(){
   const L=layers;for(const k in L)L[k].n=0;
   const lampV=LAMPS[lamp];
+  // Zooming in drops the hardware LOD by log2(zoom); add it back to blurred passes so defocus
+  // stays the same size in µm instead of sharpening as the sprite is magnified. Halos get half:
+  // their mip is already coarse, and the full correction magnifies it into visible blocks.
+  const zl=Math.log2(zoom), zb=b=>b>0?b+zl*Math.min(1,b):0, zh=zl*0.5;
   for(const o of bodies){
     const s=o.s;const isDebris=s.kind==='passive';
     const dz=Math.abs(o.z-focus);const blurUm=Math.max(0,dz-dof*0.5);
@@ -301,8 +312,8 @@ function fillLayers(){
     const put=(lay,sz,bs,al)=>{const i=lay.n++;const a=lay.a;a.pos[i*3]=o.x;a.pos[i*3+1]=o.y;a.pos[i*3+2]=0;a.rot[i]=o.h;a.size[i]=sz;
       if(isDebris){a.cell[i*2]=frame%2;a.cell[i*2+1]=frame>>1}else{a.cell[i*2]=frame;a.cell[i*2+1]=s.row}
       a.tint[i*3]=s.tint[0];a.tint[i*3+1]=s.tint[1];a.tint[i*3+2]=s.tint[2];a.bias[i]=bs;a.alpha[i]=al};
-    if(isDebris){put(L.dBody,size,bias*0.6,0.55*dim);if(glow>0)put(L.dHalo,size*1.6,2.5,0.18*glow*dim)}
-    else{put(L.body,size,bias,dim);if(glow>0)put(L.halo,size*1.45,3.2+bias*0.3,0.55*glow*dim)}
+    if(isDebris){put(L.dBody,size,zb(bias*0.6),0.55*dim);if(glow>0)put(L.dHalo,size*1.6,2.5+zh,0.18*glow*dim)}
+    else{put(L.body,size,zb(bias),dim);if(glow>0)put(L.halo,size*1.45,3.2+bias*0.3+zh,0.55*glow*dim)}
   }
   for(const k in L){const lay=L[k];for(const n in lay.attr){lay.attr[n].needsUpdate=true}lay.g.instanceCount=lay.n;lay.mesh.material.uniforms.uLamp.value.set(lampV[0],lampV[1],lampV[2])}
 }
@@ -310,17 +321,31 @@ function fillLayers(){
 // ---------------------------------------------------------------------------------------------
 // HUD: what track.py would see. Boxes for bodies inside the depth of field, ids, 60-point trails;
 // a follow window bottom-right riding the selected body (the follow clip, live).
-function px(){return [innerWidth/W,innerHeight/H]}
+// View transform. H follows the viewport aspect, so one scale k (CSS px per µm) serves both axes.
+const pxPerUm=()=>innerWidth*zoom/W;
+const viewOrigin=()=>[vx-W/zoom/2,vy-H/zoom/2];
+function screenToWorld(sx,sy){const k=pxPerUm(),[x0,y0]=viewOrigin();return [x0+sx/k,y0+sy/k]}
+function applyCam(){const hw=W/zoom/2,hh=H/zoom/2;vx=Math.min(W-hw,Math.max(hw,vx));vy=Math.min(H-hh,Math.max(hh,vy));
+  cam.left=vx-hw;cam.right=vx+hw;cam.top=vy-hh;cam.bottom=vy+hh;cam.updateProjectionMatrix()}
+function setZoom(z,sx,sy){ // keeps the world point under screen (sx,sy) fixed
+  const [wx,wy]=screenToWorld(sx,sy);zoom=Math.min(ZMAX,Math.max(ZMIN,z));
+  vx=wx-(sx/innerWidth-0.5)*W/zoom;vy=wy-(sy/innerHeight-0.5)*H/zoom;applyCam();syncZoomUi()}
+const fmtUm=u=>u>=1000?`${+(u/1000).toFixed(u>=10000?0:1)} mm`:`${+u.toPrecision(2)} µm`;
+function drawScaleBar(w,h){ // 1-2-5 bar about 100 px long, bottom-left above the palette
+  const k=pxPerUm(),raw=100/k,p=Math.pow(10,Math.floor(Math.log10(raw))),m=raw/p,um=(m<2?1:m<5?2:5)*p,len=um*k;
+  const x=14,y=h-172;hctx.fillStyle='rgba(223,243,245,.85)';hctx.fillRect(x,y,len,2);hctx.fillRect(x,y-4,1,6);hctx.fillRect(x+len-1,y-4,1,6);
+  hctx.font='600 11px ui-monospace,Menlo,monospace';hctx.fillText(`${fmtUm(um)} · field ${fmtUm(W/zoom)}`,x,y-8)}
 function drawHud(){
   const w=innerWidth,h=innerHeight;hud.width=w*devicePixelRatio;hud.height=h*devicePixelRatio;hctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);hctx.clearRect(0,0,w,h);
-  const [kx,ky]=px();
+  const k=pxPerUm(),[x0,y0]=viewOrigin(),sx=x=>(x-x0)*k,sy=y=>(y-y0)*k;
+  drawScaleBar(w,h);
   if(hudOn){hctx.font='600 11px ui-monospace,Menlo,monospace';let n=0;
     for(const o of bodies){const inFocus=Math.abs(o.z-focus)<dof*1.5;if(!inFocus||o.s.kind==='passive'&&o.len<30)continue;n++;
       const col=o===follow?'#fff':`hsl(${(o.id*47)%360} 90% 65%)`;hctx.strokeStyle=col;hctx.fillStyle=col;hctx.lineWidth=1;
-      const bw=o.len*kx*o.scale,bh=Math.max(o.len*o.s.aspect,o.len*Math.abs(Math.sin(o.h))*0.6)*ky*o.scale+6;
-      hctx.strokeRect(o.x*kx-bw/2,o.y*ky-bh/2,bw,bh);hctx.fillText(String(o.id),o.x*kx-bw/2,o.y*ky-bh/2-3);
-      if(o.trail.length>2){hctx.beginPath();hctx.moveTo(o.trail[0]*kx,o.trail[1]*ky);for(let i=2;i<o.trail.length;i+=2)hctx.lineTo(o.trail[i]*kx,o.trail[i+1]*ky);hctx.globalAlpha=0.7;hctx.stroke();hctx.globalAlpha=1}}
-    hctx.fillStyle='rgba(223,243,245,.85)';hctx.fillText(`t=${simT.toFixed(1)}s tracks=${n} bodies=${bodies.length} focus=${focus}µm dof=${dof}µm`,12,h-146);}
+      const bw=o.len*k*o.scale,bh=Math.max(o.len*o.s.aspect,o.len*Math.abs(Math.sin(o.h))*0.6)*k*o.scale+6;
+      hctx.strokeRect(sx(o.x)-bw/2,sy(o.y)-bh/2,bw,bh);hctx.fillText(String(o.id),sx(o.x)-bw/2,sy(o.y)-bh/2-3);
+      if(o.trail.length>2){hctx.beginPath();hctx.moveTo(sx(o.trail[0]),sy(o.trail[1]));for(let i=2;i<o.trail.length;i+=2)hctx.lineTo(sx(o.trail[i]),sy(o.trail[i+1]));hctx.globalAlpha=0.7;hctx.stroke();hctx.globalAlpha=1}}
+    hctx.fillStyle='rgba(223,243,245,.85)';hctx.fillText(`t=${simT.toFixed(1)}s tracks=${n} bodies=${bodies.length} focus=${focus}µm dof=${dof}µm zoom=${+zoom.toPrecision(3)}×`,12,h-146);}
   if(follow){const S=Math.min(220,Math.floor(w*0.3));const x0=w-S-12,y0=h-S-128;hctx.strokeStyle='#3ff0f5';hctx.lineWidth=1;hctx.strokeRect(x0-0.5,y0-0.5,S+1,S+1);
     hctx.fillStyle='#3ff0f5';hctx.font='600 11px ui-monospace,Menlo,monospace';hctx.fillText(`follow #${follow.id} ${follow.s.label} · ${Math.round(follow.len)} µm · z ${Math.round(follow.z)}`,x0,y0-5)}
 }
@@ -352,16 +377,28 @@ function selectBrush(name){brush=name;for(const b of paletteEl.children)b.setAtt
 function updateCounts(){const c={};for(const o of bodies)c[o.sp]=(c[o.sp]||0)+1;for(const k in counts)counts[k].textContent=c[k]?String(c[k]):''}
 let toastT=0;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200)}
 
-function toWorld(e){const r=canvas.getBoundingClientRect();return [(e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H]}
-let down=null;
-canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY,performance.now()];canvas.setPointerCapture(e.pointerId)});
-canvas.addEventListener('pointermove',e=>{if(!down||!brush)return;if(Math.hypot(e.clientX-down[0],e.clientY-down[1])>40){const [x,y]=toWorld(e);spawn(brush,x,y);down=[e.clientX,e.clientY,down[2]];updateCounts()}});
-canvas.addEventListener('pointerup',e=>{if(!down)return;const moved=Math.hypot(e.clientX-down[0],e.clientY-down[1]);down=null;if(moved>12)return;
+function toWorld(e){const r=canvas.getBoundingClientRect();return screenToWorld((e.clientX-r.left)/r.width*innerWidth,(e.clientY-r.top)/r.height*innerHeight)}
+// One pointer: tap drops or follows, drag paints with a brush and pans without one. Two: pinch zoom.
+const ptrs=new Map();let down=null,pinch=null;
+const pinchOf=()=>{const [a,b]=[...ptrs.values()];return {d:Math.max(1,Math.hypot(a[0]-b[0],a[1]-b[1])),m:[(a[0]+b[0])/2,(a[1]+b[1])/2]}};
+canvas.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+  if(ptrs.size===1)down={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,pan:false};else{down=null;pinch=ptrs.size===2?pinchOf():null}
+  try{canvas.setPointerCapture(e.pointerId)}catch(_){}});
+canvas.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+  if(pinch&&ptrs.size===2){const p=pinchOf(),k=pxPerUm();vx-=(p.m[0]-pinch.m[0])/k;vy-=(p.m[1]-pinch.m[1])/k;setZoom(zoom*p.d/pinch.d,p.m[0],p.m[1]);zoomGoal=zoom;camFollow=false;pinch=p;return}
+  if(!down)return;
+  if(brush){if(Math.hypot(e.clientX-down.x,e.clientY-down.y)>40){const [x,y]=toWorld(e);spawn(brush,x,y);down.x=e.clientX;down.y=e.clientY;updateCounts()}return}
+  if(down.pan||Math.hypot(e.clientX-down.x,e.clientY-down.y)>12){down.pan=true;camFollow=false;const k=pxPerUm();vx-=(e.clientX-down.lx)/k;vy-=(e.clientY-down.ly)/k;applyCam()}
+  down.lx=e.clientX;down.ly=e.clientY});
+canvas.addEventListener('pointerup',e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;if(!down)return;const d=down;down=null;
+  if(d.pan||Math.hypot(e.clientX-d.x,e.clientY-d.y)>12)return;
   const [x,y]=toWorld(e);
   if(brush){spawn(brush,x,y,SPECIES[brush].kind==='swim'||SPECIES[brush].kind==='hunt'?focus:undefined);updateCounts();document.getElementById('hint').classList.add('off');return}
-  let best=null,bd=130*130;for(const o of bodies){if(o.s.kind==='passive')continue;const d=dist2(o,{x,y});const r=Math.max(130,o.len*0.6);if(d<Math.min(bd,r*r)){bd=d;best=o}}
-  follow=best===follow?null:best;if(follow)toast(`following #${follow.id} ${follow.s.label}`)});
-canvas.addEventListener('pointercancel',()=>{down=null});
+  const R=130/zoom;let best=null,bd=R*R;for(const o of bodies){if(o.s.kind==='passive')continue;const dd=dist2(o,{x,y});const r=Math.max(R,o.len*0.6);if(dd<Math.min(bd,r*r)){bd=dd;best=o}}
+  follow=best===follow?null:best;camFollow=!!follow;if(follow)toast(`following #${follow.id} ${follow.s.label}`)});
+canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);down=null;pinch=null});
+canvas.addEventListener('wheel',e=>{e.preventDefault();const f=Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0015)); // ctrlKey: trackpad pinch
+  const c=camFollow&&follow;setZoom(zoom*f,c?innerWidth/2:e.clientX,c?innerHeight/2:e.clientY);zoomGoal=zoom},{passive:false});
 
 document.getElementById('preset').addEventListener('change',e=>{loadPreset(e.target.value);selectBrush(null);toast(e.target.selectedOptions[0].textContent)});
 document.getElementById('clear').addEventListener('click',()=>{clearAll();updateCounts();selectBrush(null);document.getElementById('hint').classList.remove('off');toast('chamber emptied')});
@@ -370,13 +407,26 @@ document.getElementById('pause').addEventListener('click',e=>{paused=!paused;e.c
 const bind=(id,fn,fmt)=>{const el=document.getElementById(id),out=document.getElementById(id+'Out');const on=()=>{fn(parseFloat(el.value));out.textContent=fmt(el.value)};el.addEventListener('input',on);on()};
 for(const k of ['focus','dof'])if(params.get(k))document.getElementById(k).value=params.get(k);
 bind('focus',v=>focus=v,v=>`${v} µm`);bind('dof',v=>dof=v,v=>`${v} µm`);bind('glow',v=>glow=v/100,v=>`${v}%`);bind('conv',v=>conv=v,v=>`${v} µm/s`);bind('rate',v=>rate=v,v=>`${v}×`);
+const zoomEl=document.getElementById('zoom'),zoomOut=document.getElementById('zoomOut'),zoomBtns=document.querySelectorAll('[data-zoom]');
+function syncZoomUi(){const v=Math.log10(zoom);if(document.activeElement!==zoomEl)zoomEl.value=v.toFixed(2);zoomOut.textContent=`${+zoom.toPrecision(zoom<10?2:3)}×`;
+  for(const b of zoomBtns)b.setAttribute('aria-pressed',String(Math.abs(Math.log10(+b.dataset.zoom)-v)<0.02))}
+zoomEl.addEventListener('input',()=>{zoomGoal=Math.pow(10,parseFloat(zoomEl.value));setZoom(zoomGoal,innerWidth/2,innerHeight/2)});
+for(const b of zoomBtns)b.addEventListener('click',()=>{zoomGoal=+b.dataset.zoom});
 for(const b of document.querySelectorAll('[data-lamp]'))b.addEventListener('click',()=>{lamp=b.dataset.lamp;for(const x of document.querySelectorAll('[data-lamp]'))x.setAttribute('aria-pressed',String(x===b))});
 addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;const k=parseInt(e.key,10);
   if(k>=1&&k<=ORDER.length){selectBrush(ORDER[k-1]);return}
-  if(e.key===' '){e.preventDefault();document.getElementById('pause').click()}else if(e.key==='Escape'){selectBrush(null);follow=null}else if(e.key==='t'||e.key==='T')document.getElementById('track').click()});
+  if(e.key===' '){e.preventDefault();document.getElementById('pause').click()}else if(e.key==='Escape'){selectBrush(null);follow=null;camFollow=false}else if(e.key==='t'||e.key==='T')document.getElementById('track').click();
+  else if(e.key==='+'||e.key==='=')zoomGoal=Math.min(ZMAX,zoomGoal*Math.SQRT2);else if(e.key==='-'||e.key==='_')zoomGoal=Math.max(ZMIN,zoomGoal/Math.SQRT2);else if(e.key==='0')zoomGoal=1});
 
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);H=W*h/w;cam.right=W;cam.bottom=H;cam.updateProjectionMatrix();for(const o of bodies){if(o.y>H-20)o.y=H-20;if(o.anchor&&o.anchor[1]>H-20)o.anchor[1]=H-20}}
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);H=W*h/w;applyCam();for(const o of bodies){if(o.y>H-20)o.y=H-20;if(o.anchor&&o.anchor[1]>H-20)o.anchor[1]=H-20}}
 addEventListener('resize',resize);resize();
+// ?zoom=10 joins the shareable starting state.
+if(params.get('zoom')){zoomGoal=Math.min(ZMAX,Math.max(ZMIN,parseFloat(params.get('zoom'))||1));setZoom(zoomGoal,innerWidth/2,innerHeight/2)}
+function stepView(dt){ // eases toward zoomGoal about the view centre; rides the followed body when locked on
+  // Follow lag is v/20: 80 µm behind a Didinium closing at 1.6 mm/s, inside the 290 µm field at 10×.
+  if(camFollow&&follow){const a=reduced?1:1-Math.exp(-dt*20);vx+=(follow.x-vx)*a;vy+=(follow.y-vy)*a}
+  if(Math.abs(Math.log(zoomGoal/zoom))>1e-3)setZoom(reduced?zoomGoal:zoom*Math.pow(zoomGoal/zoom,1-Math.exp(-dt*8)),innerWidth/2,innerHeight/2);
+  else{if(zoom!==zoomGoal)setZoom(zoomGoal,innerWidth/2,innerHeight/2);applyCam()}}
 
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let last=performance.now(),acc=0,eventN=0;
@@ -384,7 +434,7 @@ function tick(now){requestAnimationFrame(tick);let dt=Math.min(0.1,(now-last)/10
   try{
     if(!paused&&!(reduced&&!document.hasFocus())){const step=1/120;acc+=dt*rate;let n=0;while(acc>=step&&n<24){stepWorld(step);acc-=step;n++}}
     if(events.length!==eventN){eventN=events.length;updateCounts()}
-    render();
+    stepView(dt);render();
   }catch(err){console.error(err)}
 }
 requestAnimationFrame(tick);

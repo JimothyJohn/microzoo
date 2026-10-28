@@ -7,7 +7,9 @@ Site: [microzoo.advin.io](https://microzoo.advin.io) (GitHub Pages from `master:
 custom domain is wired by `scripts/dns-microzoo-advin.sh` and `scripts/pages-custom-domain.sh`).
 The [playground](https://microzoo.advin.io/playground.html) is the interactive version of the
 simulation: tap creatures into a darkfield chamber, set the focus plane and depth of field, watch
-the same behaviours `ecosim.py` renders, live, with the tracker's view as an overlay.
+the same behaviours `ecosim.py` renders, live, with the tracker's view as an overlay. Zoom runs
+1×–100× (slider, 1×/10×/100× buttons, wheel or pinch; drag pans, `?zoom=10` in the URL), and a
+followed swimmer keeps the camera on it.
 
 ## Quickstart (Mac Studio)
 
