@@ -12,6 +12,11 @@ data/*
 !data/.gitkeep
 *.mp4
 *.avi
+*.mkv
+*.webm
+*.mov
+# Third-party test footage (yt-dlp downloads); scripts/real-clips.sh cuts from here.
+/inputs/
 *_tracks.csv
 *_tracks.json
 
