@@ -32,5 +32,6 @@ testpaths = ["tests"]
 markers = [
     "integration: runs the CLI end to end on synthetic video",
     "network: live calls to ecotaxa.obs-vlfr.fr; opt in with pytest --network",
+    "real: third-party microscope footage; opt in with pytest --real-clips=DIR (the = matters)",
 ]
 addopts = "-ra"

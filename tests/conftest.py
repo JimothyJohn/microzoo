@@ -110,15 +110,33 @@ def pytest_addoption(parser):
         default=False,
         help="also run tests marked 'network' (live calls to ecotaxa.obs-vlfr.fr)",
     )
+    parser.addoption(
+        "--real-clips",
+        default=None,
+        metavar="DIR",
+        help="also run tests marked 'real' against the clips scripts/real-clips.sh cut "
+        "into DIR (third-party footage, never committed)",
+    )
 
 
 def pytest_collection_modifyitems(config, items):
-    """Live-network tests are opt-in: deselected, not skipped, without --network."""
-    if config.getoption("--network"):
-        return
+    """Opt-in tests are deselected, not skipped: 'network' without --network, 'real'
+    without --real-clips."""
+    off = set()
+    if not config.getoption("--network"):
+        off.add("network")
+    if not config.getoption("--real-clips"):
+        off.add("real")
     keep, drop = [], []
     for item in items:
-        (drop if item.get_closest_marker("network") else keep).append(item)
+        (drop if any(item.get_closest_marker(m) for m in off) else keep).append(item)
     if drop:
         config.hook.pytest_deselected(items=drop)
         items[:] = keep
+
+
+@pytest.fixture
+def real_clips(request) -> Path:
+    d = Path(request.config.getoption("--real-clips"))
+    assert d.is_dir(), f"--real-clips {d}: not a directory (run scripts/real-clips.sh)"
+    return d

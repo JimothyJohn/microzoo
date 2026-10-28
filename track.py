@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """track.py: v1 multi-target tracker for darkfield pond footage.
 
-Pipeline: MOG2 background subtraction -> morphology -> contours -> per-track
+Pipeline: background subtraction -> morphology -> contours -> per-track
 constant-velocity Kalman -> global assignment (pure-numpy auction; --assign
 greedy for the old nearest-neighbour matching).
+
+Background: --bg mog2 (default) or --bg hold. MOG2 forgets a swimmer that stops
+within seconds; hold seeds from a median, never learns under a track that has
+proven it moves, and relearns fast after a focus jump. On real brightfield
+footage (a rotifer pausing in debris) hold keeps one ID where MOG2 makes five.
 
 Two passes over the video. Pass 1 builds tracks (optionally on a downscaled
 frame, --scale). Pass 2 re-reads the full-resolution video and writes:
@@ -31,7 +36,9 @@ import cv2
 import numpy as np
 
 __all__ = [
+    "DEFAULT_THRESH",
     "Detection",
+    "HoldBackground",
     "Track",
     "Tracker",
     "ASSIGNERS",
@@ -40,7 +47,14 @@ __all__ = [
     "greedy_assign",
     "run",
     "main",
+    "travel",
 ]
+
+# Squared-sigma foreground threshold per background model: MOG2's varThreshold,
+# and for hold |frame - bg|^2 > thresh * var (3 sigma; its variance is per pixel
+# and includes edge jitter, so open water can carry a low bar). On compression-
+# smoothed footage (phone or YouTube H.264) --thresh 36 cuts more debris-mat tracks.
+DEFAULT_THRESH = {"mog2": 16.0, "hold": 9.0}
 
 
 @dataclass(frozen=True)
@@ -129,6 +143,156 @@ def detect(
             )
         )
     return out
+
+
+def travel(points: list[tuple], n: int = 10) -> float:
+    """How far a track has really gone: median of its first ``n`` positions to
+    median of its last ``n``. A fragment's centroid can jump 25 px between frames
+    without the body moving; a median over ten frames does not. 0 until ``n`` points."""
+    if len(points) < n:
+        return 0.0
+    head = np.median(np.array([p[1:3] for p in points[:n]], dtype=np.float64), axis=0)
+    tail = np.median(np.array([p[1:3] for p in points[-n:]], dtype=np.float64), axis=0)
+    return float(np.hypot(*(tail - head)))
+
+
+class HoldBackground:
+    """Running-average background that does not forget a swimmer that stops.
+
+    MOG2 learns every pixel at 1/min(frame, history): a rotifer that pauses is
+    background within ~25 frames early in a clip, and its ghost and its fresh body
+    become two new tracks when it swims off. Here the background is seeded from the
+    median of the first ``seed_frames`` frames (anything that moves meanwhile is voted
+    out) and then learns everywhere *except* under tracks that have proven they move
+    (``travel`` >= ``hold_px``, ever). A swimmer that pauses keeps its hold; debris
+    that never moved is relearned. Foreground is |frame - bg|^2 > ``thresh`` * var,
+    and var is per pixel: the sensor noise measured over the seed, plus
+    (|grad bg| * ``edge_px``)^2. The second term is what an edge does under a
+    sub-pixel shift or focus breathing; without it a debris edge needs a 6-sigma bar
+    that also hides a defocused Paramecium. A jump in frame sharpness (focus, Z step)
+    relearns everything not held, fast, for a few frames.
+
+    Blind spot, by construction: an animal that never moves its own length (an
+    anchored Stentor) is background from the seed on. That needs appearance, not motion.
+    """
+
+    def __init__(
+        self,
+        seed_frames: int = 60,
+        thresh: float = 9.0,
+        floor: float = 12.0,
+        alpha: float = 0.01,
+        alpha_still: float = 0.03,
+        hold_px: float = 20.0,
+        focus_jump: float = 0.15,
+        boost_alpha: float = 0.1,
+        boost_frames: int = 10,
+        edge_px: float = 2.0,
+    ):
+        if seed_frames < 1:
+            raise ValueError("seed_frames must be >= 1")
+        self.seed_frames = seed_frames
+        self.thresh = thresh
+        self.floor = floor  # grey levels; below this nothing is foreground
+        self.alpha = alpha  # learning rate of open background
+        self.alpha_still = alpha_still  # under foreground no moving track claims
+        self.hold_px = hold_px
+        self.focus_jump = focus_jump
+        self.boost_alpha = boost_alpha
+        self.boost_frames = boost_frames
+        self.edge_px = edge_px
+        self.bg: np.ndarray | None = None
+        self.var: np.ndarray | None = None
+        self._seed: list[np.ndarray] = []
+        self._sharp: list[float] = []
+        self._boost = 0
+        self._proven: set[int] = set()
+
+    @property
+    def ready(self) -> bool:
+        return self.bg is not None
+
+    def add_seed(self, gray: np.ndarray) -> bool:
+        """Buffer one seed frame; True once the background is built from them."""
+        self._seed.append(gray)
+        if len(self._seed) >= self.seed_frames:
+            self.build()
+        return self.ready
+
+    def build(self) -> None:
+        """Build the background from whatever seed frames there are (a short clip ends early)."""
+        if not self._seed:
+            raise ValueError("no seed frames")
+        st = np.stack(self._seed).astype(np.float32)
+        self.bg = np.median(st, axis=0).astype(np.float32)
+        # robust per-pixel sigma (MAD) over the seed, at least one grey level
+        mad = np.median(np.abs(st - self.bg), axis=0)
+        self.var = np.maximum((1.4826 * mad) ** 2, 1.0).astype(np.float32)
+        self._seed = []
+
+    def _model(self, gray: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        if self.bg is None or self.var is None:
+            raise RuntimeError("background not built yet: add_seed() or build() first")
+        if gray.shape != self.bg.shape:
+            raise ValueError(f"frame {gray.shape} does not match background {self.bg.shape}")
+        return self.bg, self.var
+
+    def foreground(self, gray: np.ndarray) -> np.ndarray:
+        bg, var = self._model(gray)
+        d = gray.astype(np.float32) - bg
+        d2 = d * d
+        if self.edge_px > 0:
+            # grey levels per px of background slope (Sobel's 3x3 kernel sums to 8)
+            gx = cv2.Sobel(bg, cv2.CV_32F, 1, 0, ksize=3) / 8.0
+            gy = cv2.Sobel(bg, cv2.CV_32F, 0, 1, ksize=3) / 8.0
+            var = var + (gx * gx + gy * gy) * (self.edge_px * self.edge_px)
+        fg = (d2 > self.thresh * var) & (d2 > self.floor * self.floor)
+        return fg.astype(np.uint8) * 255
+
+    def holding(self, live: list[Track]) -> set[int]:
+        """Ids of live tracks that have proven they move. Once proven, always: a swimmer
+        that comes back to where it was born keeps its hold."""
+        for t in live:
+            if t.id not in self._proven and travel(t.points) >= self.hold_px:
+                self._proven.add(t.id)
+        return {t.id for t in live if t.id in self._proven}
+
+    def learn(
+        self, gray: np.ndarray, fg: np.ndarray, live: list[Track], frame_idx: int, scale: float
+    ) -> None:
+        """Update the background after this frame's tracker step. ``live`` positions are
+        full-res; ``scale`` maps them onto ``gray``."""
+        bg, var = self._model(gray)
+        g = gray.astype(np.float32)
+        sharp = float(cv2.Laplacian(g, cv2.CV_32F).var())
+        if len(self._sharp) >= 10:
+            ref = float(np.median(self._sharp[-30:]))
+            if abs(sharp - ref) > self.focus_jump * ref:
+                self._boost = self.boost_frames
+        self._sharp.append(sharp)
+
+        held = self.holding(live)
+        hold = np.zeros(g.shape, np.uint8)
+        for t in live:
+            f, x, y, _area, w, h = t.points[-1]
+            if t.id not in held or f != frame_idx:
+                continue
+            hw, hh = w * scale / 2 + 6, h * scale / 2 + 6
+            sx, sy = x * scale, y * scale
+            cv2.rectangle(hold, (int(sx - hw), int(sy - hh)), (int(sx + hw), int(sy + hh)), 255, -1)
+        base = self.boost_alpha if self._boost > 0 else self.alpha
+        self._boost = max(0, self._boost - 1)
+        rate = np.full(g.shape, base, np.float32)
+        on = fg > 0
+        rate[on] = max(base, self.alpha_still)
+        rate[on & (hold > 0)] = 0.0
+        d = g - bg
+        # The variance learns wherever the mean does, foreground included: that is how a
+        # flickering debris edge raises its own bar. Gating it to background pixels was
+        # tried and tripled the debris tracks on real brightfield footage.
+        var += rate * (d * d - var)
+        np.maximum(var, 1.0, out=var)
+        bg += rate * d
 
 
 def _distances(
@@ -527,9 +691,17 @@ def _pass1(args: argparse.Namespace, path: Path) -> tuple[Tracker, dict]:
     inv = 1.0 / scale
     frame_area = w * h
     max_area = args.max_area if args.max_area is not None else 0.05 * frame_area
-    mog = cv2.createBackgroundSubtractorMOG2(
-        history=args.history, varThreshold=args.thresh, detectShadows=False
-    )
+    thresh = args.thresh if args.thresh is not None else DEFAULT_THRESH[args.bg]
+    mog = None
+    hold = None
+    if args.bg == "hold":
+        hold = HoldBackground(
+            seed_frames=args.bg_seed, thresh=thresh, hold_px=args.hold_px, edge_px=args.hold_edge
+        )
+    else:
+        mog = cv2.createBackgroundSubtractorMOG2(
+            history=args.history, varThreshold=thresh, detectShadows=False
+        )
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     tracker = Tracker(
         max_dist=args.max_dist,
@@ -543,29 +715,57 @@ def _pass1(args: argparse.Namespace, path: Path) -> tuple[Tracker, dict]:
         merge_ratio=args.merge_ratio,
     )
 
+    def process(i: int, gray: np.ndarray, learn: bool) -> None:
+        if mog is not None:
+            fg = mog.apply(gray)
+            if i < args.warmup:
+                tracker.step(i, [])
+                return
+        else:
+            assert hold is not None
+            fg = hold.foreground(gray)
+        fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, kernel)
+        fg = cv2.morphologyEx(fg, cv2.MORPH_CLOSE, kernel)
+        tracker.step(i, detect(fg, args.min_area, max_area, inv))
+        if hold is not None and learn:
+            hold.learn(gray, fg, tracker.live, i, scale)
+
+    def replay(frames: list[np.ndarray], first: int) -> None:
+        # The seed window is tracked too, once the background exists: detection
+        # starts at frame 0, not at --bg-seed. Live, that is a seed-length delay.
+        for j, g in enumerate(frames):
+            process(first + j, g, learn=False)
+
     idx = 0
     t0 = time.monotonic()
     median_gray = 0.0
+    pending: list[np.ndarray] = []
     while True:
         ok, frame = cap.read()
         if not ok:
             break
-        small = frame if scale == 1.0 else cv2.resize(frame, None, fx=scale, fy=scale)
+        small = (
+            frame
+            if scale == 1.0
+            else cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        )
         gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
         if idx == 0:
-            # Polarity of the illumination. MOG2 does not care (foreground is any
-            # deviation from the background model); the overlay colours do.
+            # Polarity of the illumination. The background models do not care
+            # (foreground is any deviation from the background); the overlay colours do.
             median_gray = float(np.median(gray))
-        fg = mog.apply(gray)
-        if idx >= args.warmup:
-            fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, kernel)
-            fg = cv2.morphologyEx(fg, cv2.MORPH_CLOSE, kernel)
-            dets = detect(fg, args.min_area, max_area, inv)
+        if hold is not None and not hold.ready:
+            pending.append(gray)
+            if hold.add_seed(gray):
+                replay(pending, idx - len(pending) + 1)
+                pending = []
         else:
-            dets = []
-        tracker.step(idx, dets)
+            process(idx, gray, learn=True)
         idx += 1
     cap.release()
+    if hold is not None and pending:
+        hold.build()
+        replay(pending, idx - len(pending))
     if idx == 0:
         raise VideoError(f"video has no decodable frames: {path}")
     meta = {
@@ -578,6 +778,8 @@ def _pass1(args: argparse.Namespace, path: Path) -> tuple[Tracker, dict]:
         "background": "bright" if median_gray > 127 else "dark",
         "pass1_seconds": round(time.monotonic() - t0, 3),
         "max_area": max_area,
+        "bg": args.bg,
+        "thresh": thresh,
     }
     return tracker, meta
 
@@ -807,6 +1009,20 @@ def _positive_fraction(s: str) -> float:
     return v
 
 
+def _positive_float(s: str) -> float:
+    v = float(s)
+    if not v > 0 or not np.isfinite(v):
+        raise argparse.ArgumentTypeError("must be a finite number > 0")
+    return v
+
+
+def _nonneg_float(s: str) -> float:
+    v = float(s)
+    if not v >= 0 or not np.isfinite(v):
+        raise argparse.ArgumentTypeError("must be a finite number >= 0")
+    return v
+
+
 def _positive_int(s: str) -> int:
     v = int(s)
     if v < 1:
@@ -846,8 +1062,42 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="max blob area, full-res px^2 (default 5%% of frame)",
     )
-    p.add_argument("--thresh", type=float, default=16.0, help="MOG2 varThreshold")
-    p.add_argument("--history", type=_positive_int, default=500, help="MOG2 history frames")
+    p.add_argument(
+        "--bg",
+        choices=sorted(DEFAULT_THRESH),
+        default="mog2",
+        help="background model: mog2, or hold (keeps swimmers that pause; see HoldBackground)",
+    )
+    p.add_argument(
+        "--thresh",
+        type=_positive_float,
+        default=None,
+        help="foreground threshold in squared sigmas (default: 16 for mog2, 9 for hold)",
+    )
+    p.add_argument(
+        "--history", type=_positive_int, default=500, help="MOG2 history frames (mog2 only)"
+    )
+    p.add_argument(
+        "--bg-seed",
+        type=_positive_int,
+        default=60,
+        help="hold: frames in the median seed; longer than a swimmer takes to clear its own "
+        "length (hold only)",
+    )
+    p.add_argument(
+        "--hold-px",
+        type=_positive_float,
+        default=20.0,
+        help="hold: a track that has travelled this far (full-res px, median of first vs last "
+        "10 positions) keeps the background from learning it (hold only)",
+    )
+    p.add_argument(
+        "--hold-edge",
+        type=_nonneg_float,
+        default=2.0,
+        help="hold: px of sub-pixel shift / focus breathing an edge may show before it reads "
+        "as foreground; raises the bar on debris edges only (0 disables; hold only)",
+    )
     p.add_argument(
         "--max-dist", type=float, default=40.0, help="max assignment distance, full-res px"
     )
@@ -916,7 +1166,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="detect on a downscaled frame (0.5 on the Pi at 1080p); outputs stay full-res",
     )
     p.add_argument(
-        "--warmup", type=_nonneg_int, default=2, help="frames to let MOG2 settle before detecting"
+        "--warmup",
+        type=_nonneg_int,
+        default=2,
+        help="frames to let MOG2 settle before detecting (mog2 only)",
     )
     p.add_argument(
         "--follow", type=int, default=None, help="track id for the follow clip (default: most hits)"

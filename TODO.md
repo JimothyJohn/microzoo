@@ -62,6 +62,7 @@
       asked: 2026-10-25
       by: track.py v1 session
       answer: accept until v3
+      notes: 2026-10-27 the real clip arrived: a YouTube rotifer pausing in debris was absorbed by MOG2 in ~25 frames (5+ IDs). `track.py --bg hold` keeps it one ID (opt in, MOG2 still the default). An animal that never moves its own length is still invisible: that is the static-blob option, still v3.
       notes: accepted 2026-10-26; nothing changes in track.py until the v3 event work, where sessile blobs (Stentor, anchored rotifers) force the question
 - [x] 2026-10-25 — **Tracker ID stability on ecosim clips** — track.py covers each Paramecium 0.87–0.94 of frames but the dominant ID holds only 0.17–0.42 (IDs break on avoidance reversals, swimmer bumps, debris merging into the blob). G1 asks for "stable IDs". `tests/test_cli_ecosim.py::test_tracker_follows_every_paramecium_through_the_debris` pins the current number.
   needs: a decision on whether scipy is acceptable on the Pi, or a pure-numpy assignment
