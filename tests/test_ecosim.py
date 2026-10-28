@@ -9,7 +9,16 @@ import math
 import numpy as np
 import pytest
 
-from ecosim import DEFAULT_CAST, Organism, World, parse_cast, render
+from ecosim import (
+    DEFAULT_CAST,
+    Organism,
+    World,
+    parse_cast,
+    plane_focuses,
+    render,
+    render_planes,
+)
+from optics import Optics
 from species import SPECIES, load_params
 from sprites import stentor_length
 
@@ -205,7 +214,9 @@ def test_render_returns_a_frame_of_the_right_polarity(polarity):
     assert img.shape == (240, 320, 3) and img.dtype == np.uint8
     bg = np.median(img[..., 0])
     assert (bg < 40) if polarity == "darkfield" else (bg > 200)
-    assert (img[..., 0].max() > 150) if polarity == "darkfield" else (img[..., 0].min() < 100)
+    # NA 0.1 has a 3.4 µm Airy radius: wider than a 3 µm pixel, so thin dark detail
+    # washes out in focus (64 -> 102 at this seed). Bodies are still clearly dark.
+    assert (img[..., 0].max() > 150) if polarity == "darkfield" else (img[..., 0].min() < 150)
 
 
 def test_blur_softens_edges_and_rejects_negatives():
@@ -295,7 +306,7 @@ def test_sessile_and_anchored_keep_their_z_and_swimmers_wander():
 
 
 @pytest.mark.parametrize(
-    "bad", [dict(depth_um=-1), dict(dof_um=0), dict(depth_um=100, focus_um=101)]
+    "bad", [dict(depth_um=-1), dict(z_walk=-1), dict(depth_um=100, focus_um=101)]
 )
 def test_world_rejects_bad_depth(bad):
     with pytest.raises(ValueError):
@@ -303,17 +314,96 @@ def test_world_rejects_bad_depth(bad):
 
 
 def _one_at(z: float, polarity: str = "darkfield") -> np.ndarray:
-    w = World({"paramecium": 1}, (900, 900), seed=1, depth_um=150.0, dof_um=30.0, focus_um=75.0)
+    w = World({"paramecium": 1}, (900, 900), seed=1, depth_um=150.0, focus_um=75.0)
     o = w.orgs[0]
     o.pos[:], o.z = (450.0, 450.0), z
     return render(w, (300, 300), 3.0, polarity, np.random.default_rng(0), noise=0.0)[..., 0]
 
 
 def test_out_of_focus_body_is_softer_and_wider():
-    sharp, soft, edge = _one_at(75.0), _one_at(145.0), _one_at(75.0 + 14.0)
-    assert np.array_equal(sharp, edge)  # inside the depth of field nothing changes
+    # default objective NA 0.10: DoF 55 µm, a 7 µm-radius disc at 70 µm out
+    sharp, soft, edge = _one_at(75.0), _one_at(145.0), _one_at(75.0 + 10.0)
+    diff = np.abs(sharp.astype(int) - edge.astype(int))
+    assert diff.max() <= 12  # inside the depth of field almost nothing changes
     assert soft.max() < sharp.max() - 20
-    assert (soft > 30).sum() > 1.05 * (sharp > 30).sum()  # sigma ~1.8 px at 70 µm out: mild
+    assert (soft > 20).sum() > 1.015 * (sharp > 20).sum()  # bg is 18 at noise 0; 2 px wider
+
+    def edge(img: np.ndarray) -> float:
+        return float(np.abs(np.diff(img.astype(float), axis=1)).max())
+
+    assert edge(soft) < 0.75 * edge(sharp)
     assert sharp.sum() * 0.8 < soft.sum() < sharp.sum() * 1.2  # light is spread, not lost
     bf_sharp, bf_soft = _one_at(75.0, "brightfield"), _one_at(145.0, "brightfield")
-    assert bf_soft.min() > bf_sharp.min() + 20
+    assert bf_soft.min() > bf_sharp.min() + 8  # 113 -> 125: in focus is already Airy-soft
+
+
+# ---- multi-focal planes -------------------------------------------------------
+
+X10 = Optics(0.25)
+
+
+def test_plane_focuses_centre_on_focus_and_stay_in_the_chamber():
+    w = World({"paramecium": 1}, SMALL, seed=1, depth_um=150.0, focus_um=75.0)
+    assert plane_focuses(w, 1, 0.0) == [75.0]
+    assert plane_focuses(w, 3, 30.0) == [45.0, 75.0, 105.0]
+    assert plane_focuses(w, 4, 20.0) == [45.0, 65.0, 85.0, 105.0]
+    for planes, spacing in [(0, 10.0), (3, 0.0), (3, -5.0), (3, 80.0)]:
+        with pytest.raises(ValueError):
+            plane_focuses(w, planes, spacing)
+
+
+def _sharpness(img: np.ndarray) -> float:
+    import cv2
+
+    return float(cv2.Laplacian(img[..., 0].astype(np.float32), cv2.CV_32F).var())
+
+
+def _three_at(z: float, **kw) -> list[np.ndarray]:
+    w = World({"paramecium": 1}, (240, 240), seed=2, depth_um=150.0, focus_um=75.0)
+    o = w.orgs[0]
+    o.pos[:], o.z = (120.0, 120.0), z
+    kw.setdefault("noise", 0.0)
+    return render_planes(
+        w,
+        (400, 400),
+        0.6,
+        "darkfield",
+        np.random.default_rng(0),
+        [45.0, 75.0, 105.0, None],
+        X10,
+        **kw,
+    )
+
+
+@pytest.mark.parametrize("z, sharpest", [(45.0, 0), (75.0, 1), (105.0, 2), (95.0, 2)])
+def test_each_body_is_sharpest_in_the_plane_nearest_it(z, sharpest):
+    planes = _three_at(z)[:3]
+    s = [_sharpness(p) for p in planes]
+    assert int(np.argmax(s)) == sharpest, s
+
+
+def test_planes_image_the_same_instant_and_the_oracle_is_in_focus():
+    """Same body in every plane (sprites drawn once per frame, not per plane), and
+    the all-in-focus oracle equals the plane that happens to sit on the body."""
+    planes = _three_at(75.0)
+    assert np.array_equal(planes[1], planes[3])
+    centroids = []
+    for p in planes:
+        y, x = np.nonzero(p[..., 0] > 30)
+        centroids.append((x.mean(), y.mean()))
+    assert np.ptp(np.array(centroids), axis=0).max() < 1.0
+
+
+def test_one_plane_is_render():
+    w1 = World({"paramecium": 2, "debris": 3}, SMALL, seed=4, depth_um=150.0)
+    w2 = World({"paramecium": 2, "debris": 3}, SMALL, seed=4, depth_um=150.0)
+    a = render(w1, (200, 160), 3.0, "darkfield", np.random.default_rng(1))
+    (b,) = render_planes(w2, (200, 160), 3.0, "darkfield", np.random.default_rng(1), [w2.focus])
+    assert np.array_equal(a, b)
+
+
+def test_per_plane_noise_and_its_length_is_checked():
+    quiet, loud = _three_at(75.0, noise=[0.0, 20.0, 0.0, 0.0])[:2]
+    assert quiet[:20, :20, 0].std() == 0 and loud[:20, :20, 0].std() > 10
+    with pytest.raises(ValueError):
+        _three_at(75.0, noise=[1.0, 2.0])
