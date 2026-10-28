@@ -95,7 +95,11 @@ def test_tracker_follows_every_paramecium_through_the_debris(eco_clip):
         # on macOS, 0.28..0.83 on the Linux runner (OpenCV's MOG2 differs in the
         # last bit, and a pass-over flips on it). Seeds 12-13 are a wash, 0.28-0.38
         # either way. Coverage is the contract; the floor is the Linux number.
-        assert s["stability"][oid] > 0.25, (oid, s)
+        # Wave-optics defocus (optics.py) makes in-focus bodies Airy-soft at NA 0.1,
+        # 4 µm/px, so blobs merge a little more: over seeds 11-15 on macOS the mean
+        # went 0.43 -> 0.41 and the worst body 0.22 -> 0.19, coverage flat at ~0.92.
+        # The tracker did not change; this seed's body 2 lands at 0.25 on Linux.
+        assert s["stability"][oid] > 0.2, (oid, s)
     # Position error is judged where a body is alone (2.3 px here). Stacked bodies
     # are one blob for seconds at a time in a deep chamber, and inside a merge
     # group a track coasts on its velocity (11 px here), so the merged frames
