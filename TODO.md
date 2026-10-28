@@ -140,3 +140,15 @@
   asked: 2026-10-27
   by: wave-psf session
   notes: resolved in chat 2026-10-27: IP67 WS2812B tape, ~100/m (Nick's estimate, unmeasured); ring redrawn for the sleeve with a 30° land tilt
+
+## Tasks
+
+- [ ] 2026-10-27 — **Tune the tracker on the first TOMLOV clips, then decide the default background** — `--bg hold` beat MOG2 on every YouTube clip and on ecosim, but its thresholds (`--thresh 9`, `--hold-edge 2`) were set on third-party footage. Nick (2026-10-27): make it the default only after it is tuned on his own setup.
+  needs: G1 footage: 30 s TOMLOV clips of the Bedford jar with sidecars in data/
+  result: thresholds chosen on our own sensor and illumination; `--bg hold` default (or a reason not to); the clips added to the real-footage tests
+  est: 3h
+  difficulty: med
+  id: tune-bg-on-tomlov
+  asked: 2026-10-27
+  by: bg-hold session
+  notes: start from `uv run python track.py data/<clip>.mp4 --bg hold` vs `--bg mog2`; sweep `--thresh` 9, 16, 36 and `--hold-edge` 0, 1, 2; judge by eye on `_tracks.mp4`, not by track count
