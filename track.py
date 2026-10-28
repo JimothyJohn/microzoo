@@ -51,9 +51,10 @@ __all__ = [
 ]
 
 # Squared-sigma foreground threshold per background model: MOG2's varThreshold,
-# and for hold |frame - bg|^2 > thresh * var (6 sigma; its variance is measured
-# per pixel, so debris edges carry their own flicker).
-DEFAULT_THRESH = {"mog2": 16.0, "hold": 36.0}
+# and for hold |frame - bg|^2 > thresh * var (3 sigma; its variance is per pixel
+# and includes edge jitter, so open water can carry a low bar). On compression-
+# smoothed footage (phone or YouTube H.264) --thresh 36 cuts more debris-mat tracks.
+DEFAULT_THRESH = {"mog2": 16.0, "hold": 9.0}
 
 
 @dataclass(frozen=True)
@@ -165,8 +166,10 @@ class HoldBackground:
     out) and then learns everywhere *except* under tracks that have proven they move
     (``travel`` >= ``hold_px``, ever). A swimmer that pauses keeps its hold; debris
     that never moved is relearned. Foreground is |frame - bg|^2 > ``thresh`` * var,
-    with a per-pixel variance: debris edges flicker (compression, focus breathing)
-    and need a higher bar than open water. A jump in frame sharpness (focus, Z step)
+    and var is per pixel: the sensor noise measured over the seed, plus
+    (|grad bg| * ``edge_px``)^2. The second term is what an edge does under a
+    sub-pixel shift or focus breathing; without it a debris edge needs a 6-sigma bar
+    that also hides a defocused Paramecium. A jump in frame sharpness (focus, Z step)
     relearns everything not held, fast, for a few frames.
 
     Blind spot, by construction: an animal that never moves its own length (an
@@ -176,7 +179,7 @@ class HoldBackground:
     def __init__(
         self,
         seed_frames: int = 60,
-        thresh: float = 36.0,
+        thresh: float = 9.0,
         floor: float = 12.0,
         alpha: float = 0.01,
         alpha_still: float = 0.03,
@@ -184,6 +187,7 @@ class HoldBackground:
         focus_jump: float = 0.15,
         boost_alpha: float = 0.1,
         boost_frames: int = 10,
+        edge_px: float = 2.0,
     ):
         if seed_frames < 1:
             raise ValueError("seed_frames must be >= 1")
@@ -196,6 +200,7 @@ class HoldBackground:
         self.focus_jump = focus_jump
         self.boost_alpha = boost_alpha
         self.boost_frames = boost_frames
+        self.edge_px = edge_px
         self.bg: np.ndarray | None = None
         self.var: np.ndarray | None = None
         self._seed: list[np.ndarray] = []
@@ -225,11 +230,23 @@ class HoldBackground:
         self.var = np.maximum((1.4826 * mad) ** 2, 1.0).astype(np.float32)
         self._seed = []
 
+    def _model(self, gray: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        if self.bg is None or self.var is None:
+            raise RuntimeError("background not built yet: add_seed() or build() first")
+        if gray.shape != self.bg.shape:
+            raise ValueError(f"frame {gray.shape} does not match background {self.bg.shape}")
+        return self.bg, self.var
+
     def foreground(self, gray: np.ndarray) -> np.ndarray:
-        assert self.bg is not None and self.var is not None, "build() first"
-        d = gray.astype(np.float32) - self.bg
+        bg, var = self._model(gray)
+        d = gray.astype(np.float32) - bg
         d2 = d * d
-        fg = (d2 > self.thresh * self.var) & (d2 > self.floor * self.floor)
+        if self.edge_px > 0:
+            # grey levels per px of background slope (Sobel's 3x3 kernel sums to 8)
+            gx = cv2.Sobel(bg, cv2.CV_32F, 1, 0, ksize=3) / 8.0
+            gy = cv2.Sobel(bg, cv2.CV_32F, 0, 1, ksize=3) / 8.0
+            var = var + (gx * gx + gy * gy) * (self.edge_px * self.edge_px)
+        fg = (d2 > self.thresh * var) & (d2 > self.floor * self.floor)
         return fg.astype(np.uint8) * 255
 
     def holding(self, live: list[Track]) -> set[int]:
@@ -245,7 +262,7 @@ class HoldBackground:
     ) -> None:
         """Update the background after this frame's tracker step. ``live`` positions are
         full-res; ``scale`` maps them onto ``gray``."""
-        assert self.bg is not None and self.var is not None, "build() first"
+        bg, var = self._model(gray)
         g = gray.astype(np.float32)
         sharp = float(cv2.Laplacian(g, cv2.CV_32F).var())
         if len(self._sharp) >= 10:
@@ -269,10 +286,13 @@ class HoldBackground:
         on = fg > 0
         rate[on] = max(base, self.alpha_still)
         rate[on & (hold > 0)] = 0.0
-        d = g - self.bg
-        self.var += rate * (d * d - self.var)
-        np.maximum(self.var, 1.0, out=self.var)
-        self.bg += rate * d
+        d = g - bg
+        # The variance learns wherever the mean does, foreground included: that is how a
+        # flickering debris edge raises its own bar. Gating it to background pixels was
+        # tried and tripled the debris tracks on real brightfield footage.
+        var += rate * (d * d - var)
+        np.maximum(var, 1.0, out=var)
+        bg += rate * d
 
 
 def _distances(
@@ -675,7 +695,9 @@ def _pass1(args: argparse.Namespace, path: Path) -> tuple[Tracker, dict]:
     mog = None
     hold = None
     if args.bg == "hold":
-        hold = HoldBackground(seed_frames=args.bg_seed, thresh=thresh, hold_px=args.hold_px)
+        hold = HoldBackground(
+            seed_frames=args.bg_seed, thresh=thresh, hold_px=args.hold_px, edge_px=args.hold_edge
+        )
     else:
         mog = cv2.createBackgroundSubtractorMOG2(
             history=args.history, varThreshold=thresh, detectShadows=False
@@ -994,6 +1016,13 @@ def _positive_float(s: str) -> float:
     return v
 
 
+def _nonneg_float(s: str) -> float:
+    v = float(s)
+    if not v >= 0 or not np.isfinite(v):
+        raise argparse.ArgumentTypeError("must be a finite number >= 0")
+    return v
+
+
 def _positive_int(s: str) -> int:
     v = int(s)
     if v < 1:
@@ -1043,7 +1072,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--thresh",
         type=_positive_float,
         default=None,
-        help="foreground threshold in squared sigmas (default: 16 for mog2, 36 for hold)",
+        help="foreground threshold in squared sigmas (default: 16 for mog2, 9 for hold)",
     )
     p.add_argument(
         "--history", type=_positive_int, default=500, help="MOG2 history frames (mog2 only)"
@@ -1061,6 +1090,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=20.0,
         help="hold: a track that has travelled this far (full-res px, median of first vs last "
         "10 positions) keeps the background from learning it (hold only)",
+    )
+    p.add_argument(
+        "--hold-edge",
+        type=_nonneg_float,
+        default=2.0,
+        help="hold: px of sub-pixel shift / focus breathing an edge may show before it reads "
+        "as foreground; raises the bar on debris edges only (0 disables; hold only)",
     )
     p.add_argument(
         "--max-dist", type=float, default=40.0, help="max assignment distance, full-res px"
