@@ -23,7 +23,8 @@ def test_table_numbers():
     assert r.returncode == 0, r.stderr
     out = r.stdout
     # same optics as hardware/HARDWARE.md §4 (AR0234 via the 0.5x relay)
-    row = {line.split("|")[1].strip(): line for line in out.splitlines() if line.startswith("| ")}
+    first = out.split("Z-stack")[0]  # the stack section reuses the view names
+    row = {line.split("|")[1].strip(): line for line in first.splitlines() if line.startswith("| ")}
     assert "| 0.6 | 1.15 × 0.72 | 11.2 | 8.3 px | 45% | 0.30 mm/s |" in row["10x NA 0.25"]
     assert "| 0.15 | 0.29 × 0.18 | 1.5 | 33.3 px | 326% | 0.07 mm/s |" in row["40x NA 0.65"]
     # the 1 m/s³ jerk limit's 25 ms of filter delay is what loses it at 40x (90 ms to escape)
@@ -134,3 +135,77 @@ def test_well_chamber_reports_its_lag(tmp_path):
     side = json.loads(out.with_suffix(".json").read_text())
     assert side["well_tau_s"] == pytest.approx(0.101, abs=0.001)
     assert side["robot"]["model"] == "Meca500"
+
+
+ZSMALL = ["--size", "320x200", "--dwell", "0.02"]
+
+
+def test_zstack_writes_edof_planes(tmp_path):
+    out = tmp_path / "zs.mp4"
+    r = run_cli(
+        STAGESIM, "run", "--out", str(out), "--mode", "zstack", "--objective", "10x",
+        "--z0", "40", "--z1", "100", *ZSMALL,
+    )  # fmt: skip
+    assert r.returncode == 0, r.stderr
+    side = json.loads(out.with_suffix(".json").read_text())
+    planes = side["planes"]
+    # edof.py's contract: evenly spaced, floor first, one readable clip per plane
+    zs = [p["focus_um"] for p in planes]
+    assert zs == sorted(zs) and zs[0] == 40
+    assert all(abs((b - a) - 5.6) < 1e-3 for a, b in zip(zs, zs[1:], strict=False))
+    assert len(planes) == side["zstack"]["slices"] == 11
+    for p in planes:
+        assert (tmp_path / p["file"]).stat().st_size > 0
+    assert len(_rows(tmp_path / "zs_stage.csv")) == 11
+
+
+def test_zstack_perfect_robot_is_exact_and_ordered(tmp_path):
+    out = tmp_path / "p.mp4"
+    r = run_cli(
+        STAGESIM, "run", "--out", str(out), "--mode", "zstack", "--objective", "40x",
+        "--z0", "60", "--z1", "70", "--repeat", "0", "--jitter", "0", *ZSMALL,
+    )  # fmt: skip
+    assert r.returncode == 0, r.stderr
+    s = json.loads(out.with_suffix(".json").read_text())["zstack"]
+    assert s["z_err_rms_um"] < 0.1, s  # SimStage.idle's settle threshold: ringing < 0.1 µm
+    assert s["slices_out_of_order"] == 0, s
+    assert s["xy_wander_rms_px"] < 0.1, s
+
+
+def test_zstack_at_40x_the_spec_scrambles_slices_and_registration_helps(tmp_path):
+    out = tmp_path / "s.mp4"
+    r = run_cli(
+        STAGESIM, "run", "--out", str(out), "--mode", "zstack", "--objective", "40x",
+        "--z0", "60", "--z1", "80", *ZSMALL,
+    )  # fmt: skip
+    assert r.returncode == 0, r.stderr
+    s = json.loads(out.with_suffix(".json").read_text())["zstack"]
+    assert s["z_err_over_step"] > 1, s  # 1.4 µm scatter against 0.77 µm slices
+    assert s["slices_out_of_order"] > 0, s
+    assert s["registration_err_rms_px"] < s["xy_wander_rms_px"], s
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ["--objective", "tomlov"],  # no depth of field to step by
+        ["--zstep", "0.01"],  # 15000 slices
+        ["--z0", "100", "--z1", "50"],
+        ["--z1", "500"],  # above the chamber's soft limit
+        ["--target", "hydra", "--cast", "paramecium=3"],
+    ],
+)
+def test_zstack_bad_args_exit_2(extra, tmp_path):
+    r = run_cli(
+        STAGESIM, "run", "--out", "z.mp4", "--mode", "zstack", *ZSMALL, *extra, cwd=tmp_path
+    )
+    assert r.returncode == 2, (r.stdout, r.stderr)
+
+
+def test_table_has_the_stack_section():
+    out = run_cli(STAGESIM, "table").stdout
+    stack = [x for x in out.split("Z-stack")[1].splitlines() if x.startswith("| ")]
+    rows = {x.split("|")[1].strip(): x for x in stack}
+    assert "| 0.77 | 196 | 180% |" in rows["40x NA 0.65"]
+    assert "measure" in rows["40x NA 0.65"]
+    assert "fine as specified" in rows["4x NA 0.10"]
