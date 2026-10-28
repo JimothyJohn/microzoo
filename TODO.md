@@ -30,6 +30,15 @@
   asked: 2026-10-26
   by: playground session
   notes: `! ./scripts/pages-custom-domain.sh`
+- [ ] 2026-10-27 — **Meca500 first contact through stage.py** — reads the pose, then a 100 µm XY square at 1 mm/s and back; never moves Z. Proves the TCP wiring and command strings against the real robot (the tests only ran against an emulator of the protocol).
+  needs: Meca500 on the LAN (MECA_HOST, default 192.168.0.100), activated and homed, clear of the objective, no other client on port 10000; cell clear
+  result: four "asked/got" lines and `meca-smoke: ok`; any `[1xxx]` error code means a command string is wrong and is worth pasting back
+  est: 10m
+  difficulty: low
+  id: meca-smoke
+  asked: 2026-10-27
+  by: meca-stage session
+  notes: `! MECA_HOST=<ip> ./scripts/meca-smoke.sh` (runs here; the robot is a LAN host)
 
 ## Open questions for Nick
 
@@ -100,3 +109,13 @@
   id: label-v4-on-ecotaxa
   asked: 2026-10-26
   by: ecotaxa bridge session
+- [ ] 2026-10-27 — **Retire "only Z is motorized" now the Meca500 holds the slide?** — CLAUDE.md's first two core decisions reject a motorized XY stage because moving the slide sloshes the chamber and the controller chases its own disturbance. `stagesim.py table` puts numbers on that: a sealed 150 µm spacer chamber relaxes viscously in 2.3 ms and its closed walls forbid net flow, so the water rides the slide; only an open well (≈100 ms lag plus surface waves) sloshes. The arm also replaces the G3 Z stepper. What the sim cannot settle without the rig: acceleration limit, the arm's flex mode and standstill jitter (all assumed), and whether 5 µm repeatability is good enough for Z at 10x (45% of an 11 µm depth of field) and 40x (3× its 1.5 µm).
+  needs: a decision; ideally after meca-smoke and a tracked-particle jitter/settle measurement on the rig
+  result: CLAUDE.md core decisions and gate table rewritten around the arm (XY follow + Z focus on one device, sealed chambers only), or kept with the arm as a slow re-centre/survey tool
+  options: arm is the stage: rewrite the decisions | arm for survey + open-loop re-centre only, digital tracking stays primary | wait for jitter/settle numbers
+  est: 30m for the CLAUDE.md rewrite
+  difficulty: low
+  depends: meca-smoke
+  id: retire-z-only-decision
+  asked: 2026-10-27
+  by: meca-stage session

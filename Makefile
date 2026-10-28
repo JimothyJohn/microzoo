@@ -4,7 +4,7 @@
 UV ?= uv
 RUN := $(UV) run
 
-.PHONY: help install-dev lint fmt test-unit test-integration test-all test-network requirements demo demo-eco sprites docs-media clean
+.PHONY: help install-dev lint fmt test-unit test-integration test-all test-network requirements demo demo-eco sprites docs-media meca-table demo-meca clean
 
 help:  ## Show this help.
 	@awk 'BEGIN{FS=":.*##"} /^[a-zA-Z_-]+:.*##/ { printf "  \033[1m%-18s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -38,6 +38,12 @@ demo:  ## Render a synthetic clip into data/ and track it.
 
 demo-eco:  ## Simulate the whole cast (ecosim.py), track it, fit the numbers back (trackstats.py).
 	./scripts/demo-eco.sh
+
+meca-table:  ## Meca500 stage: speeds, settle and follow limits per objective.
+	$(RUN) python stagesim.py table
+
+demo-meca:  ## Meca500 stage sim: table + follow, scan and focus-sweep clips into data/.
+	./scripts/demo-meca.sh
 
 sprites:  ## Render the sprite sheets + atlas into docs/media/.
 	$(RUN) python sprites.py --sheet docs/media/sprites.png --atlas docs/media/sprites.json --frames 12 --cell 128
