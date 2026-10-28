@@ -52,7 +52,8 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling modules under python -I
-from ecosim import DEFAULT_CAST, World, parse_cast, render  # noqa: E402
+from ecosim import DEFAULT_CAST, PRESET_NA, World, parse_cast, render  # noqa: E402
+from optics import Optics as Objective  # noqa: E402
 from species import SPECIES  # noqa: E402
 from stage import (  # noqa: E402
     MECA_REPEATABILITY_UM,
@@ -343,13 +344,10 @@ def run(a: argparse.Namespace) -> int:
     if a.mode == "follow" and cast.get(a.target, 0) == 0:
         cast[a.target] = 2
     depth = a.depth
-    world = World(
-        cast,
-        (ww, wh),
-        seed=a.seed,
-        depth_um=depth,
-        dof_um=view_opt.dof_um if math.isfinite(view_opt.dof_um) else depth,
-    )
+    world = World(cast, (ww, wh), seed=a.seed, depth_um=depth)
+    # the view's objective images every body through ecosim's defocus PSF; the
+    # TOMLOV's NA is unknown, so it takes ecosim's TOMLOV preset (DoF ~600 µm)
+    objective = Objective(view_opt.na if view_opt.na > 0 else PRESET_NA["metazoan"])
     half = ((-ww / 2, ww / 2), (-wh / 2, wh / 2), (-50.0, depth + 50.0))
     stage = SimStage(frame=SlideFrame(limits_um=half), params=params, seed=a.seed + 1)
     focus = depth / 2 if a.focus is None else a.focus
@@ -446,7 +444,7 @@ def run(a: argparse.Namespace) -> int:
             mid = (p0 + p1) / 2
             # the camera
             with framed(world, mid, fluid_rel(), (w, h), upp):
-                frame = render(world, (w, h), upp, a.polarity, rng, noise=0.0)
+                frame = render(world, (w, h), upp, a.polarity, rng, noise=0.0, optics=objective)
                 ct.writerows([[f, *r[1:]] for r in world.truth_rows(upp)])
             frame = motion_blur(frame, -blur)
             noisy = frame.astype(np.float32) + rng.normal(0, a.noise, frame.shape[:2])[..., None]
