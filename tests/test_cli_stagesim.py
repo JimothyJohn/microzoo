@@ -26,15 +26,30 @@ def test_table_numbers():
     row = {line.split("|")[1].strip(): line for line in out.splitlines() if line.startswith("| ")}
     assert "| 0.6 | 1.15 × 0.72 | 11.2 | 8.3 px | 45% | 0.30 mm/s |" in row["10x NA 0.25"]
     assert "| 0.15 | 0.29 × 0.18 | 1.5 | 33.3 px | 326% | 0.07 mm/s |" in row["40x NA 0.65"]
-    assert row["paramecium"].count("yes") == 4
+    # the 1 m/s³ jerk limit's 25 ms of filter delay is what loses it at 40x (90 ms to escape)
+    assert row["paramecium"].count("yes") == 3
+    assert "no:" in row["paramecium"].split("|")[-2]
     assert "no:" in row["didinium"]  # 1.6 mm/s escapes a 40x field before 50 mm/s² catches up
     assert "2.3 ms" in out  # sealed 150 µm chamber's viscous time
 
 
 def test_table_more_acceleration_follows_more():
-    lo = run_cli(STAGESIM, "table", "--acc", "20000").stdout
-    hi = run_cli(STAGESIM, "table", "--acc", "2000000").stdout
+    # jerk off: at fixed jerk, more acceleration only lengthens the ramp (acc/jerk)
+    lo = run_cli(STAGESIM, "table", "--acc", "20000", "--jerk", "0").stdout
+    hi = run_cli(STAGESIM, "table", "--acc", "2000000", "--jerk", "0").stdout
     assert hi.count("yes") > lo.count("yes")
+
+
+def test_table_jerk_limit_trades_settle_for_lag():
+    smooth = run_cli(STAGESIM, "table").stdout
+    sharp = run_cli(STAGESIM, "table", "--jerk", "0").stdout
+
+    def settle_ms(out, view):
+        line = next(x for x in out.splitlines() if x.startswith(f"| {view}"))
+        return float(line.split("|")[8].split("+")[1].split("ms")[0])
+
+    assert settle_ms(smooth, "10x") < settle_ms(sharp, "10x") / 3
+    assert smooth.count("yes") < sharp.count("yes")
 
 
 @pytest.mark.parametrize(
@@ -43,6 +58,7 @@ def test_table_more_acceleration_follows_more():
         ["table", "--acc", "0"],
         ["table", "--exposure", "2"],
         ["table", "--flex-zeta", "1.5"],
+        ["table", "--jerk", "-1"],
         ["run", "--out", "x.mp4", "--objective", "100x"],
         ["run", "--out", "x.mp4", "--frames", "0"],
         ["run", "--out", "x.mp4", "--mode", "scan", "--tiles", "50x50", *SMALL],

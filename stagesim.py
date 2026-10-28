@@ -147,12 +147,13 @@ def follow_verdict(speed: float, view: Optics, params: SimParams, latency_s: flo
     escape = half / speed if speed > 0 else math.inf
     if speed > params.speed_um_s:
         return "no: faster than the speed cap"
-    budget = escape - latency_s
+    ramp = params.acc_um_s2 / params.jerk_um_s3 if params.jerk_um_s3 > 0 else 0.0
+    budget = escape - latency_s - ramp / 2  # the jerk filter delays the response by half its window
     if budget <= 0:
         return f"no: gone in {escape * 1000:.0f} ms"
     need = speed / budget
     # once matched, the remaining lag is speed*latency + speed^2/(2 acc)
-    lag = speed * latency_s + speed**2 / (2 * params.acc_um_s2)
+    lag = speed * (latency_s + ramp / 2) + speed**2 / (2 * params.acc_um_s2)
     if need > params.acc_um_s2 or lag > half:
         return f"no: needs {need / 1000:.0f} mm/s²"
     return f"yes, lags {lag / view.um_per_px:.0f} px"
@@ -163,7 +164,8 @@ def table(params: SimParams, exposure_s: float, latency_s: float, coverslip_mm: 
     lines = [
         f"Meca500 holding the slide: repeatability {rp_px:g} µm (spec), speed "
         f"{params.speed_um_s / 1000:g} mm/s, acceleration {params.acc_um_s2 / 1000:g} mm/s² "
-        f"(assumed), flex {params.flex_hz:g} Hz zeta {params.flex_zeta:g} (assumed), "
+        f"(assumed), jerk {params.jerk_um_s3 / 1000:g} mm/s³, "
+        f"flex {params.flex_hz:g} Hz zeta {params.flex_zeta:g} (assumed), "
         f"exposure {exposure_s * 1000:g} ms, latency {latency_s * 1000:g} ms.",
         "",
         "| View | µm/px | Field (mm) | DoF (µm) | 5 µm repeat = | vs DoF | Scan ≤1 px blur "
@@ -176,7 +178,7 @@ def table(params: SimParams, exposure_s: float, latency_s: float, coverslip_mm: 
         dof = v.dof_um
         vs_dof = "unknown" if math.isnan(dof) else f"{MECA_REPEATABILITY_UM / dof:.0%}"
         v_scan = v.um_per_px / exposure_s
-        hop = move_time(fw, params.speed_um_s, params.acc_um_s2)
+        hop = move_time(fw, params.speed_um_s, params.acc_um_s2, params.jerk_um_s3)
         settle = settle_time(params, fw, v.um_per_px / 2)
         tiles = math.ceil(coverslip_mm * 1000 / fw) * math.ceil(coverslip_mm * 1000 / fh)
         survey = tiles * (hop + settle + exposure_s)
@@ -319,6 +321,7 @@ def run(a: argparse.Namespace) -> int:
         params = SimParams(
             speed_um_s=a.speed,
             acc_um_s2=a.acc,
+            jerk_um_s3=a.jerk * 1000,
             repeat_um=a.repeat,
             flex_hz=a.flex_hz,
             flex_zeta=a.flex_zeta,
@@ -350,7 +353,7 @@ def run(a: argparse.Namespace) -> int:
     half = ((-ww / 2, ww / 2), (-wh / 2, wh / 2), (-50.0, depth + 50.0))
     stage = SimStage(frame=SlideFrame(limits_um=half), params=params, seed=a.seed + 1)
     focus = depth / 2 if a.focus is None else a.focus
-    stage.cmd = np.array([0.0, 0.0, focus])
+    stage.place(0.0, 0.0, focus)
     tau = (a.well_depth**2 / (math.pi**2 * WATER_NU_UM2_S)) if a.chamber == "well" else 0.0
     fluid_abs = np.zeros(2)  # where the water has got to, in slide-motion terms
 
@@ -371,7 +374,7 @@ def run(a: argparse.Namespace) -> int:
             return 2
         tgt = next(o for o in world.orgs if o.id == follower.target)
         p = slide_of(tgt)
-        stage.cmd = np.array([p[0], p[1], focus])
+        stage.place(float(p[0]), float(p[1]), focus)
     elif a.mode == "scan":
         fw, fh = w * upp, h * upp
         nx, ny = max(1, int(a.tiles[0])), max(1, int(a.tiles[1]))
@@ -513,6 +516,9 @@ def _robot_args(p: argparse.ArgumentParser) -> None:
     d = SimParams()
     p.add_argument("--speed", type=float, default=5000.0, help="stage speed cap, µm/s")
     p.add_argument("--acc", type=float, default=d.acc_um_s2, help="µm/s² (assumed)")
+    p.add_argument(
+        "--jerk", type=float, default=d.jerk_um_s3 / 1000, help="mm/s³, 0 = trapezoid (assumed)"
+    )
     p.add_argument("--repeat", type=float, default=d.repeat_um, help="ISO repeatability, µm")
     p.add_argument("--flex-hz", type=float, default=d.flex_hz, help="arm first mode (assumed)")
     p.add_argument("--flex-zeta", type=float, default=d.flex_zeta)
@@ -573,6 +579,7 @@ def main(argv: list[str] | None = None) -> int:
             params = SimParams(
                 speed_um_s=a.speed,
                 acc_um_s2=a.acc,
+                jerk_um_s3=a.jerk * 1000,
                 repeat_um=a.repeat,
                 flex_hz=a.flex_hz,
                 flex_zeta=a.flex_zeta,

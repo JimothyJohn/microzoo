@@ -6,8 +6,8 @@ One interface, two implementations:
     MecaStage   the real robot over its text API (TCP 10000, null-terminated
                 ASCII, replies ``[code][data]``). Stdlib socket only, so it
                 runs on the Pi next to the capture loop.
-    SimStage    the same calls against a time-stepped model: trapezoidal
-                moves at the set speed and acceleration, the arm's first flex
+    SimStage    the same calls against a time-stepped model: jerk-limited
+                (S-curve) moves at the set speed and acceleration, the arm's first flex
                 mode ringing after every acceleration change, ISO 9283
                 repeatability scatter at each move's end, and servo jitter.
 
@@ -178,13 +178,15 @@ def calibrate_xy(moves_um: np.ndarray, shifts_px: np.ndarray) -> tuple[float, fl
     return best[1], best[2], best[3]
 
 
-def move_time(dist_um: float, speed_um_s: float, acc_um_s2: float) -> float:
-    """Rest-to-rest straight-line move time, trapezoid or triangle profile."""
+def move_time(dist_um: float, speed_um_s: float, acc_um_s2: float, jerk_um_s3: float = 0) -> float:
+    """Rest-to-rest straight-line move time: trapezoid (or triangle), plus the
+    jerk limit's ramp time acc/jerk when there is one (SimStage's S-curve)."""
     if dist_um <= 0:
         return 0.0
+    ramp = acc_um_s2 / jerk_um_s3 if jerk_um_s3 > 0 else 0.0
     if dist_um <= speed_um_s**2 / acc_um_s2:
-        return 2 * math.sqrt(dist_um / acc_um_s2)
-    return dist_um / speed_um_s + speed_um_s / acc_um_s2
+        return 2 * math.sqrt(dist_um / acc_um_s2) + ramp
+    return dist_um / speed_um_s + speed_um_s / acc_um_s2 + ramp
 
 
 class Stage(Protocol):
@@ -342,11 +344,14 @@ class SimParams:
     flex_zeta: float = 0.05
     jitter_um: float = 0.3  # standstill servo dither, RMS per axis, assumed
     substep_s: float = 0.0005
+    # 1 m/s³: at 50 mm/s² the acceleration ramps over 50 ms, two flex periods. 0 = no limit
+    jerk_um_s3: float = 1.0e6
 
     def __post_init__(self) -> None:
         _check_speed(self.speed_um_s)
         ok = (
             self.acc_um_s2 > 0
+            and self.jerk_um_s3 >= 0
             and self.flex_hz > 0
             and 0 <= self.flex_zeta < 1
             and self.repeat_um >= 0
@@ -355,7 +360,7 @@ class SimParams:
         )
         if not ok:
             raise ValueError(
-                "need acc > 0, flex_hz > 0, 0 <= zeta < 1, repeat >= 0, jitter >= 0, "
+                "need acc > 0, jerk >= 0, flex_hz > 0, 0 <= zeta < 1, repeat >= 0, jitter >= 0, "
                 "and a substep under a tenth of the flex period"
             )
 
@@ -375,9 +380,13 @@ class SimStage:
     def __post_init__(self) -> None:
         self.rng = np.random.default_rng(self.seed)
         self.t = 0.0
-        self.cmd = np.zeros(3)
+        self.cmd = np.zeros(3)  # the trajectory the robot executes (jerk-limited)
         self.vel = np.zeros(3)
         self.acc = np.zeros(3)
+        self._raw = np.zeros(3)  # the planner's trapezoid, before the jerk limit
+        self._raw_v = np.zeros(3)
+        self._t_owed = 0.0
+        self._reset_smoother()
         self.flex = np.zeros(3)  # first-mode deflection, driven by the commanded acceleration
         self.flex_v = np.zeros(3)
         self.err = np.zeros(3)  # repeatability offset, blends to a fresh draw over each move
@@ -423,9 +432,29 @@ class SimStage:
             self.step(0.005)
 
     # ---- model -----------------------------------------------------------
+    def place(self, x: float, y: float, z: float) -> None:
+        """Teleport: start the sim at rest at this view (no move, no checks)."""
+        self._raw = np.array([x, y, z], float)
+        self._raw_v = np.zeros(3)
+        self.cmd = self._raw.copy()
+        self.vel = np.zeros(3)
+        self._reset_smoother()
+
+    def _reset_smoother(self) -> None:
+        p = self.params
+        n = 1 if p.jerk_um_s3 <= 0 else max(1, round(p.acc_um_s2 / p.jerk_um_s3 / p.substep_s))
+        self._hist: deque[np.ndarray] = deque([self._raw.copy()] * n, maxlen=n)
+        self._sum = self._raw * n
+
     @property
     def moving(self) -> bool:
-        return self.target is not None or bool(self.queue) or bool(np.any(self.vel))
+        return (
+            self.target is not None
+            or bool(self.queue)
+            or bool(np.any(self._raw_v))
+            or bool(np.any(self.vel))
+            or float(np.linalg.norm(self.cmd - self._raw)) > 1e-9
+        )
 
     @property
     def ringing_um(self) -> float:
@@ -442,13 +471,21 @@ class SimStage:
         if not (math.isfinite(dt) and dt > 0):
             raise ValueError("dt must be > 0")
         p = self.params
-        n = max(1, math.ceil(dt / p.substep_s))
-        h = dt / n
+        h = p.substep_s  # fixed, so the jerk filter's window is a fixed time; leftover carries
         w = 2 * math.pi * p.flex_hz
+        self._t_owed += dt
+        n = int(self._t_owed / h + 1e-9)
+        self._t_owed -= n * h
         for _ in range(n):
-            v0 = self.vel.copy()
             self._advance(h)
-            self.acc = (self.vel - v0) / h
+            # jerk limit: a box average of the trapezoid over T = acc/jerk is an S-curve
+            # whose jerk is exactly acc/T (FIR trajectory smoothing)
+            self._sum += self._raw - self._hist[0]
+            self._hist.append(self._raw.copy())
+            cmd = self._sum / len(self._hist)
+            vel = (cmd - self.cmd) / h
+            self.acc = (vel - self.vel) / h
+            self.cmd, self.vel = cmd, vel
             # base-excited mode: x'' + 2 zeta w x' + w^2 x = -a  (semi-implicit Euler)
             self.flex_v += h * (-self.acc - 2 * p.flex_zeta * w * self.flex_v - w * w * self.flex)
             self.flex += h * self.flex_v
@@ -456,9 +493,9 @@ class SimStage:
         self.jitter = self.rng.normal(0, p.jitter_um, 3) if p.jitter_um else np.zeros(3)
 
     def _accel_toward(self, v_want: np.ndarray, dv_max: float) -> float:
-        dv = v_want - self.vel
+        dv = v_want - self._raw_v
         n = float(np.linalg.norm(dv))
-        self.vel = self.vel + (dv if n <= dv_max else dv * (dv_max / n))
+        self._raw_v = self._raw_v + (dv if n <= dv_max else dv * (dv_max / n))
         return n
 
     def _advance(self, h: float) -> None:
@@ -466,11 +503,11 @@ class SimStage:
         dv_max = p.acc_um_s2 * h
         if self.target is None and self.queue and self.jog_v is None:
             self.target = self.queue.popleft()
-            self._seg_len = float(np.linalg.norm(self.target - self.cmd))
+            self._seg_len = float(np.linalg.norm(self.target - self._raw))
             self._err_from = self.err.copy()
             self._err_to = self.rng.normal(0, self._sigma, 3)
         if self.target is not None:
-            d = self.target - self.cmd
+            d = self.target - self._raw
             dist = float(np.linalg.norm(d))
             # the fastest speed that can still stop in ``dist`` shedding dv_max per substep:
             # h (v²/2dv + v/2) = dist; the continuous limit is sqrt(2 a d)
@@ -478,28 +515,28 @@ class SimStage:
             v_cap = min(p.speed_um_s, v_brake, dist / h)  # dist/h: land on it, don't hop over
             v_want = v_cap * (d / dist) if dist > 0 else np.zeros(3)
             self._accel_toward(v_want, dv_max)
-            if dist <= float(np.linalg.norm(self.vel)) * h + 1e-9:
+            if dist <= float(np.linalg.norm(self._raw_v)) * h + 1e-9:
                 # pinned on the target; the last sliver of speed sheds next substep
-                self.cmd = self.target.copy()
+                self._raw = self.target.copy()
                 self.err = self._err_to.copy()
                 self.target = None
                 return
-            self.cmd = self.cmd + self.vel * h
+            self._raw = self._raw + self._raw_v * h
             done = 1 - dist / self._seg_len if self._seg_len > 0 else 1.0
             self.err = self._err_from + (self._err_to - self._err_from) * done
         elif self.jog_v is not None:
             self._accel_toward(self.jog_v, dv_max)
-            nxt = self.cmd + self.vel * h
+            nxt = self._raw + self._raw_v * h
             try:
                 self.frame.check((float(nxt[0]), float(nxt[1]), float(nxt[2])))
             except StageLimitError:  # the real robot would fault on its work zone; stop dead
-                self.vel = np.zeros(3)
+                self._raw_v = np.zeros(3)
                 self.jog_v = None
                 return
-            self.cmd = nxt
-            if not np.any(self.jog_v) and not np.any(self.vel):
+            self._raw = nxt
+            if not np.any(self.jog_v) and not np.any(self._raw_v):
                 self.jog_v = None
-        elif np.any(self.vel):
+        elif np.any(self._raw_v):
             self._accel_toward(np.zeros(3), dv_max)
 
 
