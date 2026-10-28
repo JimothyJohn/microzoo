@@ -138,6 +138,39 @@ def test_held_blob_stays_foreground_while_an_unheld_one_is_learned():
     assert (fg[41:55, 111:125] > 0).mean() < 0.05
 
 
+def test_a_held_body_survives_a_focus_jump_that_dims_it():
+    """Water flea, frames 391-478 of the darkfield clip: the whole frame softens and
+    dims at once, the focus boost fires, and the held animal's fainter pixels drop
+    under threshold. If the hold froze only foreground pixels, those relearn at the
+    boost rate, the blob and its box shrink together, and the held body is eaten in
+    ~80 frames (1434 -> 70 px^2). The held box must be frozen whole."""
+    rng = np.random.default_rng(4)
+    tex = cv2.GaussianBlur(rng.uniform(150, 250, (100, 160)).astype(np.float32), (0, 0), 1.0)
+    body = np.zeros_like(tex)
+    cv2.circle(body, (80, 50), 10, 1.0, -1)
+    body = cv2.GaussianBlur(body, (0, 0), 2.0)  # soft rim, like a real animal's edge
+    hb = HoldBackground(seed_frames=20)
+    for _ in range(20):
+        hb.add_seed(_noisy(tex, rng))
+    swim_in = [(3.0 * i + 14.0, 50.0) for i in range(22)]  # proven: 66 px in from the left
+
+    def scene(frame: int) -> np.ndarray:
+        if frame < 15:
+            return tex * (1 - 0.6 * body)
+        soft = cv2.GaussianBlur(tex, (0, 0), 3.0)  # the refocus: every edge softens
+        return 0.9 * soft * (1 - 0.35 * body)  # and the animal loses contrast
+
+    for frame in range(120):
+        g = _noisy(scene(frame), rng)
+        fg = hb.foreground(g)
+        a = _track(9, [*swim_in, *[(80.0, 50.0)] * (frame + 1)], w=24, h=24)
+        a.points = [(frame - len(a.points) + 1 + k, *p[1:]) for k, p in enumerate(a.points)]
+        hb.learn(g, fg, [a], frame, 1.0)
+    fg = hb.foreground(_noisy(scene(120), rng))
+    core = body > 0.5
+    assert (fg > 0)[core].mean() > 0.9, (fg > 0)[core].mean()
+
+
 def test_a_focus_jump_is_relearned_within_a_few_frames():
     """A Z move blurs every static edge at once. Off any held track the model should
     catch up in a handful of frames, not the ~100 its normal learning rate needs."""
