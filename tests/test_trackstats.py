@@ -95,6 +95,35 @@ def test_match_species_votes_by_proximity(tmp_path):
     assert match_species(_track(20, 0.0, 0.0, x0=900, y0=900), tr, 10)[0] == "unmatched"
 
 
+def test_match_species_prefers_the_body_over_a_speck_it_overlaps(tmp_path):
+    """A blob that is a Paramecium (55 px long) lying over a debris speck has its
+    centroid nearer the speck's centre than the Paramecium's: nearest-centre voting
+    called it detritus. Distance is to the body's rough outline, so the point inside
+    the Paramecium is the Paramecium's, and a speck tracked on its own stays a speck."""
+    truth = tmp_path / "x_truth.csv"
+    with truth.open("w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["frame", "obj_id", "x", "y", "species", "state", "heading", "length_px"])
+        for f in range(20):
+            w.writerow([f, 1, 100, 100, "paramecium", "swim", 0.0, 55.0])
+            w.writerow([f, 2, 106, 100, "debris", "passive", 0.0, 4.0])
+            w.writerow([f, 3, 160, 100, "debris", "passive", 0.0, 4.0])
+    tr = load_truth(truth)
+    assert match_species(_track(20, 0.0, 0.0, x0=105, y0=100), tr, match_px=25)[0] == "paramecium"
+    assert match_species(_track(20, 0.0, 0.0, x0=160, y0=101), tr, match_px=25)[0] == "debris"
+
+
+def test_match_species_without_lengths_is_nearest_centre(tmp_path):
+    truth = tmp_path / "x_truth.csv"
+    with truth.open("w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["frame", "obj_id", "x", "y", "species"])
+        w.writerow([0, 1, 100, 100, "paramecium"])
+        w.writerow([0, 2, 106, 100, "debris"])
+    tr = load_truth(truth)
+    assert match_species(_track(1, 0.0, 0.0, x0=105, y0=100), tr, match_px=25)[0] == "debris"
+
+
 def test_per_species_is_frame_weighted():
     stats = {
         1: {"frames": 100, "speed_mean": 1000.0, "turn_sigma": 1.0},

@@ -16,16 +16,26 @@ against, plus the events a future v3 detector should find:
     <stem>.json           sidecar: the parameters that produced the clip; track.py
                           embeds it, so a tracked clip carries its own model.
 
+With ``--planes N`` the one clip becomes N synchronised cameras behind a beam
+splitter, each focused ``--plane-spacing`` µm apart around ``--focus``:
+
+    <stem>_plane<k>.mp4   camera k, nearest the floor first; each gets 1/N of the
+                          light, modelled as sensor noise x sqrt(N)
+    <stem>_aif.mp4        the oracle: every body at its own focus, one camera's noise.
+                          What edof.py's fusion is scored against.
+
     python ecosim.py --out data/eco.mp4 --frames 600 --fps 30 --size 960x720 \\
         --um-per-px 3 --cast paramecium=8,didinium=2,stentor=1,rotifer=2,debris=30
 
 The chamber has depth (``--depth``, µm): every free swimmer carries a Z, bodies
-only bump when they overlap in Z, so most crossings are pass-overs, and anything
-outside the depth of field (``--dof`` around ``--focus``) renders with a mild
-defocus blur. ``--depth 0`` is the old flat sim.
+only bump when they overlap in Z, so most crossings are pass-overs, and every
+body is imaged through a wave-optics defocus PSF (optics.py) for its distance
+from ``--focus``: Airy in focus, a ringed disc out of it. ``--na`` and
+``--immersion`` set the objective; the depth of field (λn/NA²) follows from them.
+``--depth 0`` keeps everything at the focal plane.
 
-``--preset microbe|ciliate|metazoan`` picks a rung of the food chain: a cast and
-a µm/px to match (40x on bacteria and flagellates; 4x-10x on the ciliate cast;
+``--preset microbe|ciliate|metazoan`` picks a rung of the food chain: a cast, a
+µm/px and an NA to match (40x on bacteria and flagellates; 4x-10x on the ciliate cast;
 the TOMLOV's 6 µm/px on Daphnia, copepods and Hydra). Who eats whom is
 ``species.py``'s ``prey`` lists: every mobile kind grazes or hunts with the same
 code, sessile ones feed at the bell, traps (heliozoa, Hydra) take what touches
@@ -50,6 +60,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling modules under python -I
+from optics import MEDIA, Optics, psf  # noqa: E402
 from species import SPECIES, Species, dump_params, load_params  # noqa: E402
 from sprites import (  # noqa: E402
     POLARITIES,
@@ -66,7 +77,9 @@ __all__ = [
     "Organism",
     "World",
     "parse_cast",
+    "plane_focuses",
     "render",
+    "render_planes",
     "write_clip",
 ]
 
@@ -89,9 +102,11 @@ PRESETS: dict[str, tuple[str, float]] = {
         6.0,
     ),
 }
+# --preset NA: 40x dry (0.65), 4x (0.10), the TOMLOV (~0.03, a 15 µm resolution floor)
+PRESET_NA = {"microbe": 0.65, "ciliate": 0.10, "metazoan": 0.03}
+DEFAULT_NA = 0.10
 EVENT_KINDS = ("capture", "ingested", "contraction", "release")
 Z_WALK_UM_SQRT_S = 20.0  # free swimmers' Z random walk, µm / sqrt(s)
-DEFOCUS_SIGMA_UM_PER_UM = 0.1  # blur sigma (µm) per µm outside the depth of field, ~NA at 4x
 _Z_WALKERS = frozenset({"swim", "hunt", "neck", "crawl", "hop", "passive", "tumble", "wriggle"})
 _MOBILE = frozenset({"swim", "hunt", "hop", "tumble", "glide", "wriggle", "crawl", "neck"})
 _FIXED = frozenset({"sessile", "trap"})  # foot on a wall, body pointing in
@@ -173,16 +188,14 @@ class World:
         drift_um_s: float = 25.0,
         drift_period_s: float = 90.0,
         depth_um: float = 0.0,
-        dof_um: float = 30.0,
         focus_um: float | None = None,
         z_walk: float = Z_WALK_UM_SQRT_S,
     ) -> None:
-        if depth_um < 0 or dof_um <= 0 or z_walk < 0:
-            raise ValueError("depth_um >= 0, dof_um > 0, z_walk >= 0")
+        if depth_um < 0 or z_walk < 0:
+            raise ValueError("depth_um >= 0, z_walk >= 0")
         self.species = species or SPECIES
         self.w, self.h = float(size_um[0]), float(size_um[1])
         self.depth = float(depth_um)
-        self.dof = float(dof_um)
         self.focus = self.depth / 2 if focus_um is None else float(focus_um)
         if not 0 <= self.focus <= self.depth:
             raise ValueError(f"focus_um must lie in [0, {self.depth}]")
@@ -675,55 +688,61 @@ class World:
 _SPRITE_CACHE: dict[tuple, tuple[np.ndarray, int]] = {}
 
 
-def defocus_sigma_px(z: float, focus: float, dof: float, um_per_px: float) -> float:
-    """Gaussian sigma in px for a body ``z`` µm from the focal plane: zero inside
-    the depth of field, then linear in the distance beyond it."""
-    excess = max(0.0, abs(z - focus) - 0.5 * dof)
-    return DEFOCUS_SIGMA_UM_PER_UM * excess / um_per_px
-
-
-def defocus(sig: np.ndarray, sigma_px: float) -> np.ndarray:
-    """Blur a sprite signal, padding the canvas so the spread is not clipped."""
-    if sigma_px < 0.05:
+def defocus(sig: np.ndarray, kernel: np.ndarray, channel: int) -> np.ndarray:
+    """Convolve one channel of a sprite signal with a PSF (the one ``composite`` reads
+    for the polarity: 0 darkfield, 1 brightfield), padding the canvas so the spread is
+    not clipped. The other channel comes back zero."""
+    pad = kernel.shape[0] // 2
+    if pad == 0:
         return sig
-    pad = int(math.ceil(3 * sigma_px))
-    padded = cv2.copyMakeBorder(sig, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=0)
-    out = cv2.GaussianBlur(padded, (0, 0), sigma_px)
-    return out.reshape(padded.shape[0], padded.shape[1], 2)
+    src = np.ascontiguousarray(sig[..., channel])
+    padded = cv2.copyMakeBorder(src, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=0)
+    out = np.zeros((*padded.shape, 2), np.float32)
+    out[..., channel] = cv2.filter2D(padded, -1, kernel, borderType=cv2.BORDER_CONSTANT)
+    return out
 
 
-def render(
+def plane_focuses(world: World, planes: int, spacing_um: float) -> list[float]:
+    """Focal heights of ``planes`` cameras ``spacing_um`` apart, centred on the world's
+    focus, floor first. Raises if one would focus outside the chamber."""
+    if planes < 1 or (planes > 1 and spacing_um <= 0):
+        raise ValueError("planes >= 1, and plane spacing > 0 when planes > 1")
+    zs = [world.focus + (k - (planes - 1) / 2) * spacing_um for k in range(planes)]
+    if zs[0] < -1e-9 or zs[-1] > world.depth + 1e-9:
+        raise ValueError(
+            f"planes span {zs[0]:.1f}..{zs[-1]:.1f} µm, outside the {world.depth:g} µm chamber"
+        )
+    return zs
+
+
+def render_planes(
     world: World,
     size: tuple[int, int],
     um_per_px: float,
     polarity: str,
     rng: np.random.Generator,
-    noise: float = 6.0,
+    focuses: list[float | None],
+    optics: Optics | None = None,
+    noise: float | list[float] = 6.0,
     blur_um: float = 0.0,
-) -> np.ndarray:
-    """One BGR frame of the world as it stands.
-
-    ``blur_um`` is the optics' resolution floor as a full width at half maximum
-    in micrometres (the TOMLOV sits at 10 to 20 µm; a 4x objective on a
-    global-shutter sensor resolves finer than a pixel at 1.5 µm/px, so 0). It is
-    applied before the sensor noise, as optics come before the sensor.
-    """
+) -> list[np.ndarray]:
+    """BGR frames of the world as it stands, one per focal height in ``focuses``,
+    all of the same instant: each body's sprite is drawn once and imaged through
+    the defocus PSF for each plane. A ``None`` focus is the all-in-focus oracle
+    (every body at its own focus). Noise is drawn per frame, after the optics; a
+    list gives each plane its own sigma."""
     if polarity not in POLARITIES:
         raise ValueError(f"polarity must be one of {POLARITIES}, got {polarity!r}")
     if blur_um < 0:
         raise ValueError(f"blur_um must be >= 0, got {blur_um}")
+    optics = optics or Optics(DEFAULT_NA)
+    noises = list(noise) if isinstance(noise, list) else [noise] * len(focuses)
+    if len(noises) != len(focuses):
+        raise ValueError(f"{len(noises)} noise sigmas for {len(focuses)} planes")
     w, h = size
     bright = polarity == "brightfield"
-    img = np.full((h, w), 225.0 if bright else 18.0, np.float32)
-    # debris first, then far-from-focus before in-focus so a sharp body draws over a soft one
-    order = sorted(
-        world.orgs,
-        key=lambda o: (
-            world.species[o.species].motion.kind != "passive",
-            -abs(o.z - world.focus),
-        ),
-    )
-    for o in order:
+    sigs: list[tuple[Organism, np.ndarray]] = []
+    for o in world.orgs:
         if not o.visible:
             continue
         spec = world.species[o.species]
@@ -748,15 +767,52 @@ def render(
             sig, _ = _SPRITE_CACHE[key]
         else:
             sig, _ = render_sprite(spec, st, rng)
-        if world.depth > 0:
-            sig = defocus(sig, defocus_sigma_px(o.z, world.focus, world.dof, um_per_px))
-        composite(img, sig, o.pos[0] / um_per_px, o.pos[1] / um_per_px, polarity)
+        sigs.append((o, sig))
     sigma_px = blur_um / um_per_px / 2.355  # FWHM -> sigma
-    if sigma_px > 0.05:
-        img = cv2.GaussianBlur(img, (0, 0), sigma_px)
-    img += rng.normal(0, noise, img.shape).astype(np.float32)
-    gray = np.clip(img, 0, 255).astype(np.uint8)
-    return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+    frames = []
+    for focus, sigma in zip(focuses, noises, strict=True):
+        img = np.full((h, w), 225.0 if bright else 18.0, np.float32)
+        # debris first, then far-from-focus before in-focus so a sharp body draws over a soft one
+        order = sorted(
+            sigs,
+            key=lambda t: (
+                world.species[t[0].species].motion.kind != "passive",
+                0.0 if focus is None else -abs(t[0].z - focus),
+            ),
+        )
+        for o, sig in order:
+            dz = 0.0 if focus is None else o.z - focus
+            sig = defocus(sig, psf(optics, dz, um_per_px), 1 if bright else 0)
+            composite(img, sig, o.pos[0] / um_per_px, o.pos[1] / um_per_px, polarity)
+        if sigma_px > 0.05:
+            img = cv2.GaussianBlur(img, (0, 0), sigma_px)
+        img += rng.normal(0, sigma, img.shape).astype(np.float32)
+        gray = np.clip(img, 0, 255).astype(np.uint8)
+        frames.append(cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR))
+    return frames
+
+
+def render(
+    world: World,
+    size: tuple[int, int],
+    um_per_px: float,
+    polarity: str,
+    rng: np.random.Generator,
+    noise: float = 6.0,
+    blur_um: float = 0.0,
+    optics: Optics | None = None,
+) -> np.ndarray:
+    """One BGR frame of the world as it stands, focused at ``world.focus``.
+
+    ``optics`` is the objective (default NA 0.10 dry, a 4x); every body is imaged
+    through its defocus PSF. ``blur_um`` is a further resolution floor as a full
+    width at half maximum in micrometres, for optics worse than their NA (the
+    TOMLOV sits at 10 to 20 µm). Both apply before the sensor noise, as optics
+    come before the sensor.
+    """
+    return render_planes(
+        world, size, um_per_px, polarity, rng, [world.focus], optics, noise, blur_um
+    )[0]
 
 
 def write_clip(
@@ -771,13 +827,31 @@ def write_clip(
     noise: float = 6.0,
     sidecar: dict | None = None,
     blur_um: float = 0.0,
-) -> dict[str, Path]:
-    """Run ``world`` for ``frames`` and encode it; returns the paths written."""
+    optics: Optics | None = None,
+    planes: int = 1,
+    plane_spacing_um: float = 0.0,
+) -> dict:
+    """Run ``world`` for ``frames`` and encode it; returns the paths written.
+
+    ``planes > 1`` writes ``<stem>_plane<k>.mp4`` per camera (light split N ways:
+    noise x sqrt(N)) plus the all-in-focus oracle ``<stem>_aif.mp4``, instead of
+    ``out``; the sidecar lists them with their focal heights."""
     w, h = size
+    focuses: list[float | None] = list(plane_focuses(world, planes, plane_spacing_um))
+    if planes == 1:
+        clips = [out]
+    else:
+        clips = [out.with_name(f"{out.stem}_plane{k}.mp4") for k in range(planes)]
+        clips.append(out.with_name(out.stem + "_aif.mp4"))
+        focuses.append(None)
+    noises = [noise * math.sqrt(planes)] * planes + [noise] * (len(clips) - planes)
     out.parent.mkdir(parents=True, exist_ok=True)
-    wr = cv2.VideoWriter(str(out), cv2.VideoWriter.fourcc(*"mp4v"), fps, (w, h))
-    if not wr.isOpened():
-        raise RuntimeError(f"cannot open writer: {out}")
+    writers = []
+    for c in clips:
+        wr = cv2.VideoWriter(str(c), cv2.VideoWriter.fourcc(*"mp4v"), fps, (w, h))
+        if not wr.isOpened():
+            raise RuntimeError(f"cannot open writer: {c}")
+        writers.append(wr)
     rng = np.random.default_rng(seed + 7_919)
     truth = out.with_name(out.stem + "_truth.csv")
     events = out.with_name(out.stem + "_events.csv")
@@ -789,9 +863,14 @@ def write_clip(
         )
         for _ in range(frames):
             cw.writerows(world.truth_rows(um_per_px))
-            wr.write(render(world, size, um_per_px, polarity, rng, noise=noise, blur_um=blur_um))
+            imgs = render_planes(
+                world, size, um_per_px, polarity, rng, focuses, optics, noises, blur_um
+            )
+            for wr, img in zip(writers, imgs, strict=True):
+                wr.write(img)
             world.step(dt)
-    wr.release()
+    for wr in writers:
+        wr.release()
     _SPRITE_CACHE.clear()
     with events.open("w", newline="") as fh:
         cw = csv.writer(fh)
@@ -808,8 +887,20 @@ def write_clip(
                     f"{e.y / um_per_px:.2f}",
                 ]
             )
-    paths = {"clip": out, "truth": truth, "events": events}
+    paths: dict = {"truth": truth, "events": events}
+    if planes == 1:
+        paths["clip"] = out
+    else:
+        paths["planes"], paths["aif"] = clips[:planes], clips[planes]
     if sidecar is not None:
+        if planes > 1:
+            sidecar = dict(sidecar)
+            sidecar["planes"] = [
+                {"file": c.name, "focus_um": round(f, 3)}
+                for c, f in zip(clips[:planes], focuses[:planes], strict=True)
+                if f is not None
+            ]
+            sidecar["aif"] = clips[planes].name
         sc = out.with_suffix(".json")
         sc.write_text(json.dumps(sidecar, indent=1) + "\n")
         paths["sidecar"] = sc
@@ -835,7 +926,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--preset",
         choices=sorted(PRESETS),
-        help="a rung of the food chain: sets --cast and --um-per-px unless given",
+        help="a rung of the food chain: sets --cast, --um-per-px and --na unless given",
     )
     p.add_argument("--cast", help=f"species=count,... (default: {DEFAULT_CAST})")
     p.add_argument("--frames", type=int, default=300)
@@ -847,8 +938,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--drift-period", type=float, default=90.0, help="current rotation period, s")
     p.add_argument("--noise", type=float, default=6.0, help="sensor noise sigma")
     p.add_argument("--depth", type=float, default=150.0, help="chamber depth, µm (0 = flat sim)")
-    p.add_argument("--dof", type=float, default=30.0, help="depth of field, µm")
     p.add_argument("--focus", type=float, help="focal plane height, µm (default: depth/2)")
+    p.add_argument(
+        "--na", type=float, help=f"objective NA (default {DEFAULT_NA}, 4x; 10x 0.25; 100x oil 1.25)"
+    )
+    p.add_argument("--immersion", choices=sorted(MEDIA), default="air", help="objective medium")
+    p.add_argument("--wavelength", type=float, default=0.55, help="illumination, µm")
+    p.add_argument(
+        "--planes", type=int, default=1, help="synchronised cameras at stepped focus (see top)"
+    )
+    p.add_argument("--plane-spacing", type=float, default=0.0, help="focus step between planes, µm")
     p.add_argument(
         "--blur-um",
         type=float,
@@ -879,6 +978,13 @@ def main(argv: list[str] | None = None) -> int:
         a.cast = preset_cast
     if a.um_per_px is None:
         a.um_per_px = preset_scale
+    if a.na is None:
+        a.na = PRESET_NA[a.preset] if a.preset else DEFAULT_NA
+    try:
+        optics = Optics(a.na, a.wavelength, MEDIA[a.immersion])
+    except ValueError as e:
+        print(f"ecosim: bad --na/--immersion/--wavelength: {e}", file=sys.stderr)
+        return 2
     if a.frames < 1 or a.fps <= 0 or a.um_per_px <= 0 or a.blur_um < 0:
         print("ecosim: frames >= 1, fps > 0, um-per-px > 0", file=sys.stderr)
         return 2
@@ -897,11 +1003,11 @@ def main(argv: list[str] | None = None) -> int:
             drift_um_s=a.drift,
             drift_period_s=a.drift_period,
             depth_um=a.depth,
-            dof_um=a.dof,
             focus_um=a.focus,
         )
+        plane_focuses(world, a.planes, a.plane_spacing)
     except ValueError as e:
-        print(f"ecosim: bad --depth/--dof/--focus: {e}", file=sys.stderr)
+        print(f"ecosim: bad --depth/--focus/--planes: {e}", file=sys.stderr)
         return 2
     sidecar = {
         "source": "ecosim",
@@ -916,8 +1022,14 @@ def main(argv: list[str] | None = None) -> int:
         "drift_um_s": a.drift,
         "drift_period_s": a.drift_period,
         "depth_um": world.depth,
-        "dof_um": world.dof,
         "focus_um": world.focus,
+        "objective": {
+            "na": optics.na,
+            "immersion": a.immersion,
+            "n": optics.n,
+            "wavelength_um": optics.wavelength_um,
+        },
+        "dof_um": round(optics.dof_um, 3),
         "blur_um": a.blur_um,
         "noise": a.noise,
         "species": json.loads(dump_params({k: species[k] for k in cast})),
@@ -934,11 +1046,15 @@ def main(argv: list[str] | None = None) -> int:
         a.noise,
         sidecar,
         blur_um=a.blur_um,
+        optics=optics,
+        planes=a.planes,
+        plane_spacing_um=a.plane_spacing,
     )
     kinds = {k: sum(1 for e in world.events if e.kind == k) for k in EVENT_KINDS}
     alive = sum(1 for o in world.orgs if o.visible and o.species != "debris")
+    clip = paths["clip"] if a.planes == 1 else f"{a.planes} planes + {paths['aif'].name}"
     print(
-        f"{paths['clip']} ({a.frames} frames, {len(world.orgs)} objects, {alive} alive) "
+        f"{clip} ({a.frames} frames, {len(world.orgs)} objects, {alive} alive) "
         f"events={kinds} + {paths['truth'].name}, {paths['events'].name}"
     )
     return 0

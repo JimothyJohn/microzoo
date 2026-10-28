@@ -57,15 +57,17 @@ def load_tracks(path: Path) -> dict[int, np.ndarray]:
     return {tid: np.array(sorted(v), dtype=np.float64) for tid, v in rows.items()}
 
 
-def load_truth(path: Path) -> dict[int, dict[int, tuple[float, float, str]]]:
-    """{frame: {obj_id: (x, y, species)}} from an ecosim/synth truth CSV."""
-    out: dict[int, dict[int, tuple[float, float, str]]] = defaultdict(dict)
+def load_truth(path: Path) -> dict[int, dict[int, tuple[float, float, str, float]]]:
+    """{frame: {obj_id: (x, y, species, length_px)}} from an ecosim/synth truth CSV;
+    length is 0 when the file has none."""
+    out: dict[int, dict[int, tuple[float, float, str, float]]] = defaultdict(dict)
     with path.open(newline="") as fh:
         for row in csv.DictReader(fh):
             out[int(row["frame"])][int(row["obj_id"])] = (
                 float(row["x"]),
                 float(row["y"]),
                 row.get("species") or "unknown",
+                float(row.get("length_px") or 0.0),
             )
     return out
 
@@ -156,17 +158,27 @@ def track_stats(
 
 
 def match_species(
-    t: np.ndarray, truth: dict[int, dict[int, tuple[float, float, str]]], match_px: float
+    t: np.ndarray, truth: dict[int, dict[int, tuple[float, float, str, float]]], match_px: float
 ) -> tuple[str, float]:
-    """(species, fraction of frames matched) for the truth object this track rides."""
+    """(species, fraction of frames matched) for the truth object this track rides.
+
+    Each frame votes for the body whose rough outline (a disc of a quarter its
+    length) is nearest the track point, the bigger body on a tie: a Paramecium
+    lying over a speck makes one blob whose centroid sits nearer the speck's centre
+    than its own, and that blob is the Paramecium. A centre must still be within
+    ``match_px``, plus that radius, of the point."""
     votes: dict[str, int] = defaultdict(int)
     for f, x, y, _ in t:
         objs = truth.get(int(f), {})
-        best, bd = None, match_px
-        for _oid, (tx, ty, sp) in objs.items():
+        best, key = None, (math.inf, 0.0)
+        for _oid, (tx, ty, sp, length) in objs.items():
+            r = 0.25 * length
             d = math.hypot(x - tx, y - ty)
-            if d < bd:
-                best, bd = sp, d
+            if d >= match_px + r:
+                continue
+            k = (max(0.0, d - r), -length)
+            if k < key:
+                best, key = sp, k
         if best is not None:
             votes[best] += 1
     if not votes:
