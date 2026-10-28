@@ -1,8 +1,8 @@
 # LED ring: darkfield, oblique and colour for the TOMLOV, driven by the Pi
 
-**What it is.** A printed riser that lifts a 50 mm Petri dish so the water sits just under
-the TOMLOV lens when the arm bottoms out (lens at 17.91 mm above the stage). Under the dish,
-a ring of WS2812B tape aims inward and up at 73° from vertical. With the TOMLOV backlight
+**What it is.** A printed riser that lifts a 60 × 15 mm Petri dish so the water sits just
+under the TOMLOV lens when the arm bottoms out (lens at 17.91 mm above the stage). Under the
+dish, a ring of 21 WS2812B LEDs (IP67 tape, 100/m) lights the sample at 75° from vertical. With the TOMLOV backlight
 off and the black stop in the cutout, that is darkfield. Light an arc instead of the whole
 ring and it's oblique illumination; switch the stop for the diffuser and the TOMLOV
 backlight gives brightfield. A tab takes a plate to the Meca500 flange. Source:
@@ -12,10 +12,11 @@ backlight gives brightfield. A tab takes a plate to the Meca500 flange. Source:
 
 | Parameter | Default | How |
 |---|---|---|
-| LED type | WS2812B **tape** | 12 mm bullet pixels *don't fit*: see Geometry |
-| `STRIP_W`, `STRIP_PITCH` | 10 mm, 60/m | calipers; LEDs per metre printed on the reel |
-| `DISH_OD`, `DISH_FLOOR_T`, `DISH_FOOT`, `DISH_H` | 50, 1.0, 0, 15 | calipers; `DISH_FOOT` is the recess under the floor, if any |
-| `LENS_D` | 35 mm | lens nose diameter: it must dip inside the dish (inner ⌀ 48) |
+| LED type | WS2812B IP67 **tape** | 12 mm bullet pixels *don't fit*: see Geometry |
+| `STRIP_W`, `STRIP_T`, `STRIP_PITCH` | 12, 4.5, 10 mm (100/m) | calipers across and through the silicone sleeve; count LEDs over 10 cm |
+| `DISH_FLOOR_T`, `DISH_FOOT`, `DISH_H` | 1.0, 0, 15 | calipers. `DISH_FOOT` is the recess under the floor, if any. **The floor thickness sets the water height**: it's the one dish number that must be right |
+| `DISH_OD_MIN`..`MAX` | 54..61 | no need to measure: the seat takes any base in that range. It stands on a flat land, and a 30° lead-in on the lip guides it. A cone would centre it but set its height by its diameter. A small dish can sit 3.8 mm off centre, which the optics don't care about |
+| `LENS_D` | 35 mm | lens nose diameter: it must dip inside the smallest dish even pushed off centre |
 | `BACKLIGHT_D` | 30 mm | lit window in the TOMLOV base |
 | `MECA_BCD`, `MECA_HOLES`, `MECA_PIN_*` | unset | Meca500 flange drawing or calipers; the adapter refuses to render without it |
 
@@ -23,9 +24,10 @@ backlight gives brightfield. A tab takes a plate to the Meca500 flange. Source:
 1. **Colour values 0 or 255 only.** WS2812B dims by PWM at about 400 Hz. Against a 2 ms
    exposure (and the TOMLOV's rolling shutter) that shows up as brightness flicker and
    banding. Full-on channels are DC: no flicker. Set brightness by how many LEDs are lit.
-2. **One colour channel by default.** Green alone draws about a third of white and makes a
-   third of the heat. The ring sits 9 mm below the dish edge, and heat means convection,
-   which reads as drift (CLAUDE.md).
+2. **One colour channel, and not every LED.** 21 LEDs all green is about 2 W, a few mm from
+   the dish edge; all white is about 6 W. Heat means convection, which reads as drift
+   (CLAUDE.md). Start with every third LED in one colour (≈0.7 W), add more only if the
+   image needs it, and check the water temperature after an hour.
 3. **Every clip's sidecar records the light state:** mode, colour, which LEDs, plus the
    TOMLOV backlight on/off. Future labels depend on it.
 
@@ -43,21 +45,25 @@ z = 0 is the TOMLOV stage. Defaults, checked against every assert in the `.scad`
 | dish floor top (`WATER_DEPTH` 2.0) | 14.91 |
 | dish stands on the seat ring | 13.91 |
 | base wall top / seat ring underside | 11.91 |
-| LED centres, r = 31 | 6.2 |
+| LED centres, r = 36 | 6.5 |
 | strip groove floor | 1.0 |
 
-- **Base:** OD 76 mm, 11.9 mm tall; the seat ring is 80 mm OD.
-- **LEDs:** 10 at 60/m (28 at 144/m, 5 at 30/m). One pitch is left for the cut, with
-  the leads out of a slot opposite the tab.
-- **Chief ray:** 72.6° from vertical in air. It enters the dish floor 6.4 mm off axis and
-  runs at 45.8° in the water, just under the 48.8° total-internal-reflection angle. Direct
+- **Base:** OD 93 mm, 11.9 mm tall; the seat ring is 97 mm OD.
+- **LEDs:** 21 at 100/m. One pitch is left for the cut, with the leads out of a slot
+  opposite the tab.
+- **Strip tilt is not the aim.** A 12 mm sleeve aimed straight at the sample (15° up) needs
+  11.6 mm of height and there is 10.9. So the land tilts the strip 30° up, and the sample
+  sits 15° off the LED axis, well inside the ~120° beam. `LAND_TILT` and `LED_Z` are the
+  knobs; the asserts say when the strip stops fitting.
+- **Chief ray:** 75° from vertical in air. It enters the dish floor 7.7 mm off axis and
+  runs at 47° in the water, just under the 48.8° total-internal-reflection angle. Direct
   light leaves the surface at a grazing angle, far outside anything the lens accepts. Put
   the LEDs lower and the direct light TIRs back down instead: darker still.
 - **The lens dips into the dish.** The rim is at about 28.9 mm. That's why `LENS_D` must be
   below the dish's inner diameter; otherwise use a lid or a shallow dish
   (`DISH_H` < 3.5 mm).
 - **Bullet pixels are out.** A 12 mm pixel string needs about 11.5 mm of height, aimed this
-  shallow. There's 10.4 mm under the seat ring, because the dish floor has to be at
+  shallow. There's about 10.9 mm under the seat ring, because the dish floor has to be at
   14.9 mm. If your strand is bullet pixels, the ring needs a different layout (pixels
   outside the dish, aimed down through a side window). Say so and I'll draw it.
 
@@ -68,11 +74,12 @@ z = 0 is the TOMLOV stage. Defaults, checked against every assert in the `.scad`
 | `base` | backlight cutout with an insert counterbore, conical strip land, cable slot, M3 heat-set tab |
 | `seat` | flat ring: the dish stands on its inner 2.5 mm, the rest roofs the LEDs. Its rim drops over the base wall to centre it. Prints flat |
 | `stop` | black insert, darkfield |
-| `diffuser` | 0.6 mm window in white/natural PLA: diffused TOMLOV backlight, brightfield |
+| `diffuser` | the stop's disc in translucent filament: diffused TOMLOV backlight, brightfield |
 | `meca_adapter` | plate from the tab to the flange |
 
-Render with `./scripts/cad-render.sh` (needs OpenSCAD; Homebrew's cask is disabled, so
-install it from openscad.org).
+Render with `./scripts/cad-render.sh`: STLs plus a cut-away `data/cad/dish_ring_section.png`
+showing the dish, water, lens and chief ray ghosted in place. It finds OpenSCAD on PATH, in
+/Applications (versioned names too), or on a mounted DMG.
 
 ## Illumination modes (all from the same ring)
 
@@ -99,8 +106,8 @@ Pi GPIO ── 74AHCT125 (Vcc 5 V) ── 330 Ω ── strip DIN
 
 - **Level shifter.** WS2812B wants about 0.7 × 5 V for a logic high. 3.3 V works on some
   strips and not others, so use a 74AHCT125 (or any AHCT buffer at 5 V). Short data lead.
-- **Power.** Budget about 20 mA per lit colour channel per LED: 10 LEDs green ≈ 0.2 A,
-  all white ≈ 0.6 A. Use a separate 5 V supply; the Pi 5's own supply is spoken for.
+- **Power.** Budget about 20 mA per lit colour channel per LED: 21 LEDs green ≈ 0.4 A,
+  all white ≈ 1.3 A. Use a separate 5 V 2 A supply; the Pi 5's own supply is spoken for.
 - **Library: not `rpi_ws281x`.** The Pi 5 moved GPIO to the RP1 chip and that library no
   longer drives it. Two paths:
   - **SPI (my pick).** WS2812 bits encoded 3 SPI bits each at 2.4 MHz (`1` → `110`,
@@ -133,8 +140,8 @@ down onto its far end beside the holder.
   and a 2.95 mm pin for the 3 mm locating holes. So screws are plate thickness + ≤4 mm:
   M3×8 into a 5 mm plate. **The bolt-circle diameter and hole count are not verified.**
   `MECA_BCD` stays 0 and the adapter won't render until it's measured.
-- **Payload:** 0.5 kg (Meca500 R3 manual, as cited in `stage.py`). Holder, dish and 4 mL
-  of water come to well under 100 g.
+- **Payload:** 0.5 kg (Meca500 R3 manual, as cited in `stage.py`). Holder, dish and 5 mL
+  of water come to well under 150 g.
 - **An open dish on a moving arm is the slosh case.** `stagesim.py` clears a *sealed*
   150 µm chamber (closed walls, no free surface). An open well lags about 100 ms and makes
   surface waves, with the lens 1 mm above the water. Use the arm to place and swap dishes,

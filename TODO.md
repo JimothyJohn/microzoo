@@ -40,16 +40,15 @@
   by: meca-stage session
   notes: `! MECA_HOST=<ip> ./scripts/meca-smoke.sh` (runs here; the robot is a LAN host)
 
-- [ ] 2026-10-27 — **Measure, render and print the dish ring** — `cad/dish_ring.scad` (darkfield WS2812 ring + 50 mm dish riser for the TOMLOV) is drawn and its asserts pass at placeholder numbers, but it has never been rendered: no OpenSCAD on the Studio, and Homebrew's cask is disabled.
-  needs: OpenSCAD from openscad.org; calipers on the dish (OD, floor thickness, foot recess, height), the TOMLOV lens nose diameter and backlight window, the strip width and LEDs/m; numbers into the top of the .scad (list in hardware/LED.md)
+- [ ] 2026-10-27 — **Measure and print the dish ring** — `cad/dish_ring.scad` (darkfield WS2812 ring + 60 × 15 mm dish riser for the TOMLOV) renders clean at working numbers (60 mm dish, IP67 tape 12 × 4.5 mm sleeve, 100/m); a cut-away preview lands in data/cad/dish_ring_section.png. Caliper numbers replace the working ones before printing.
+  needs: calipers on the dish **base** (OD where it stands, floor thickness, foot recess, height), the TOMLOV lens nose diameter and backlight window, the strip sleeve width/thickness and LEDs per 10 cm; numbers into the top of the .scad (list in hardware/LED.md). OpenSCAD 2021.01 is still only on the DMG: drag it to /Applications
   result: STLs in data/cad/ for base, seat, stop and diffuser; print in matte black PLA (diffuser in white) and the dish's water sits 1 mm under the lens at bottom-out
   est: 1h
   difficulty: low
-  depends: led-strip-type
   id: dish-ring-print
   asked: 2026-10-27
   by: wave-psf session
-  notes: `! ./scripts/cad-render.sh` (runs here once OpenSCAD is installed); add `cad/dish_ring.scad meca_adapter` after MECA_BCD is measured
+  notes: `! ./scripts/cad-render.sh` (runs here); add `cad/dish_ring.scad meca_adapter` after MECA_BCD is measured
 
 ## Open questions for Nick
 
@@ -131,7 +130,7 @@
   id: retire-z-only-decision
   asked: 2026-10-27
   by: meca-stage session
-- [ ] 2026-10-27 — **Which LEDs is the strand: WS2812B tape or 12 mm bullet pixels?** — the dish ring is drawn for tape on a conical land under the dish. A 12 mm bullet pixel needs ~11.5 mm of height aimed that shallow and there is 10.4 mm under the seat (the dish floor has to sit at 14.9 mm for the 17.91 mm lens bottom-out), so bullets need a different layout: pixels outside the dish aimed down-and-in through a side window.
+- [x] 2026-10-27 — **Which LEDs is the strand: WS2812B tape or 12 mm bullet pixels?** — the dish ring is drawn for tape on a conical land under the dish. A 12 mm bullet pixel needs ~11.5 mm of height aimed that shallow and there is 10.4 mm under the seat (the dish floor has to sit at 14.9 mm for the 17.91 mm lens bottom-out), so bullets need a different layout: pixels outside the dish aimed down-and-in through a side window.
   needs: a look at the strand (flat tape with LEDs on it, or round 12 mm pixels on wire), and LEDs per metre if tape
   result: tape: print as drawn after measuring; bullets: I redraw the ring around them
   options: tape 60/m | tape 144/m | tape 30/m | 12 mm bullet pixels
@@ -140,3 +139,4 @@
   id: led-strip-type
   asked: 2026-10-27
   by: wave-psf session
+  notes: resolved in chat 2026-10-27: IP67 WS2812B tape, ~100/m (Nick's estimate, unmeasured); ring redrawn for the sleeve with a 30° land tilt

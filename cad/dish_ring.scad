@@ -1,4 +1,4 @@
-// dish_ring.scad: 50 mm Petri dish riser + WS2812 darkfield ring for the TOMLOV TM3K-3D,
+// dish_ring.scad: 60 mm Petri dish riser + WS2812 darkfield ring for the TOMLOV TM3K-3D,
 // with a backlight cutout and a tab for a Meca500 adapter. See hardware/LED.md.
 //
 // Parametrized on LENS_Z = 17.91 mm: the TOMLOV lens bottom above the stage surface with
@@ -9,7 +9,7 @@
 //   base          base plate, backlight cutout + insert counterbore, LED land, Meca tab
 //   seat          flat ring the dish stands on; also the roof that hides the LEDs from the lens
 //   stop          black insert for the cutout: darkfield
-//   diffuser      0.6 mm window insert (print white/natural): diffused backlight, brightfield
+//   diffuser      the stop's disc in translucent filament: diffused backlight, brightfield
 //   meca_adapter  plate from the base's tab to the Meca500 flange (needs MECA_BCD measured)
 //   assembly      everything in place, plus a ghost dish, water and lens to eyeball clearances
 //
@@ -24,7 +24,10 @@ WATER_GAP = 1.0;     // lens bottom to water surface; meniscus wicks onto the le
 WATER_DEPTH = 2.0;   // water column in the dish
 
 /* [Dish: MEASURE with calipers] */
-DISH_OD = 50.0;      // outer diameter where it stands
+DISH_OD = 60.0;      // nominal, for the ghost (listing: "60 x 15 mm")
+DISH_OD_MIN = 54.0;  // the seat takes any base OD in [MIN, MAX]: "60" is often the lid,
+DISH_OD_MAX = 61.0;  // the base a few mm smaller. It stands on a flat land either way
+LEAD_IN = 30;        // lip taper, deg from vertical: guides the dish in, never lifts it
 DISH_WALL = 1.0;
 DISH_FLOOR_T = 1.0;  // floor thickness
 DISH_FOOT = 0.0;     // floor underside above the ring it stands on (0 for a flat-bottom dish)
@@ -35,11 +38,14 @@ LENS_D = 35.0;       // MEASURE: lens nose diameter at its bottom (must dip insi
 BACKLIGHT_D = 30.0;  // MEASURE: lit window in the TOMLOV base
 
 /* [LEDs: WS2812B tape. 12 mm bullet pixels do not fit under a dish this low; see LED.md] */
-STRIP_W = 10.0;      // MEASURE: 10 for most 60/m tape, 12 for 144/m
-STRIP_T = 3.0;       // tape + adhesive (+ silicone sleeve if not stripped)
-STRIP_PITCH = 1000 / 60;  // mm per LED: 1000/30, 1000/60, 1000/144
-LED_R = 31.0;        // radius of the LED faces
-LED_Z = 6.2;         // height of the LED centres
+STRIP_W = 12.0;      // MEASURE: across the IP67 silicone sleeve (bare tape is 10 or 12)
+STRIP_T = 4.5;       // MEASURE: sleeve + tape + LED, back face to front of the sleeve
+STRIP_PITCH = 10.0;  // MEASURE: mm per LED; Nick thinks 100/m
+LED_R = 36.0;        // radius of the LED faces: just outside the dish's seat
+LED_Z = 6.5;         // height of the LED centres (6.4..6.7 fits a 12 mm sleeve at 30 deg)
+LAND_TILT = 30;      // strip normal above horizontal. The chief ray to the sample is
+                     // shallower (`aim`); the LED's ~120 deg beam covers the difference,
+                     // and the tilt is what lets a 12 mm sleeve fit under the seat.
 
 /* [Print] */
 WALL = 2.4;
@@ -58,7 +64,8 @@ TAB_L = 32.0;        // tab length beyond the base
 TAB_W = 30.0;
 TAB_T = 6.0;
 TAB_HOLE_SPACING = 20.0;
-HEATSET_D = 4.0;     // MEASURE: pilot for your M3 heat-set inserts
+HEATSET_D = 4.0;     // pilot for M3 heat-set inserts, at the bottom of the bore
+HEATSET_TAPER = 0.4; // bore opens this much wider at the top: fits most M3 insert brands
 M3_CLR = 3.4;
 MECA_BCD = 0;        // MEASURE: Meca500 flange bolt-circle diameter. 0 = unknown, refuses to render.
 MECA_HOLES = 4;      // MEASURE: tapped M3 holes on that circle
@@ -81,15 +88,21 @@ aim = atan((sample_z - LED_Z) / LED_R);          // LED axis elevation above hor
 incidence = 90 - aim;                            // from vertical; darkfield wants it large
 r_cut = BACKLIGHT_D / 2;
 r_ins = r_cut + INSERT_LIP;
-seat_ri = DISH_OD / 2 - SEAT_LAND;
-pocket_r = DISH_OD / 2 + CLR;
+// The dish stands on a flat land from seat_ri out to the lip, whatever its OD in range:
+// a cone would centre it but set its height by its diameter, and height is the 1 mm gap.
+seat_ri = DISH_OD_MIN / 2 - SEAT_LAND;
+pocket_r = DISH_OD_MAX / 2 + CLR;                // lip bottom
+pocket_top_r = pocket_r + POCKET_H * tan(LEAD_IN);
+slop = pocket_r - DISH_OD_MIN / 2;               // worst off-centre, smallest dish
+dish_id_min = DISH_OD_MIN - 2 * DISH_WALL;
 
-// strip land: the cone the tape sticks to, normal pointing at the sample
-land_r0 = LED_R + STRIP_T;                       // land radius at LED_Z
-s_bot = (GROOVE_Z - LED_Z) / cos(aim);
-s_top = (wall_top - LED_Z) / cos(aim);
-land_bot_r = land_r0 + s_bot * sin(aim);
-land_top_r = land_r0 + s_top * sin(aim);
+// strip land: the cone the tape sticks to, its normal LAND_TILT above horizontal
+land_r0 = LED_R + STRIP_T / cos(LAND_TILT);      // land radius at LED_Z
+s_bot = (GROOVE_Z - LED_Z) / cos(LAND_TILT);
+s_top = (wall_top - LED_Z) / cos(LAND_TILT);
+land_bot_r = land_r0 + s_bot * sin(LAND_TILT);
+land_top_r = land_r0 + s_top * sin(LAND_TILT);
+off_axis = LAND_TILT - aim;                      // sample's angle off the LED axis
 outer_r = land_top_r + WALL;
 seat_r = outer_r + CLR + 1.6;                    // seat ring OD: its rim drops over the wall
 tab_x = outer_r + 6;                             // first tab hole
@@ -104,6 +117,7 @@ echo(str("seat (dish stands) z = ", seat_z, " mm; water ", floor_top, "..", wate
          " mm; lens ", LENS_Z, " mm"));
 echo(str("LED ring r = ", LED_R, " z = ", LED_Z, ": ", incidence,
          " deg from vertical in air; enters the dish floor at r = ", ray_r_at_floor, " mm"));
+echo(str("strip tilted ", LAND_TILT, " deg; the sample is ", off_axis, " deg off the LED axis"));
 echo(str("base OD ", 2 * outer_r, " mm, height ", wall_top, " (+ seat ", SEAT_T, " + lip ",
          POCKET_H, ")"));
 echo(str(n_strip, " LEDs at ", STRIP_PITCH, " mm pitch on a ", 2 * PI * LED_R,
@@ -112,10 +126,12 @@ echo(str(n_strip, " LEDs at ", STRIP_PITCH, " mm pitch on a ", 2 * PI * LED_R,
 assert(seat_z > BASE_T + 4, "dish would sit on the base plate: lower WATER_DEPTH or check LENS_Z");
 assert(ray_z_at_seat < wall_top - 0.5,
        "the seat ring shadows the LEDs: lower LED_Z or move LED_R out");
-assert(LENS_D < dish_id - 2 || seat_z + DISH_H < LENS_Z - 0.5,
-       "lens cannot dip into the dish and the rim is above it: shallower dish or a lid");
+assert(LENS_D < dish_id_min - 2 * slop - 2 || seat_z + DISH_H < LENS_Z - 0.5,
+       "lens cannot dip into the smallest dish pushed off-centre: narrow the OD range or a lid");
 assert(s_bot <= -STRIP_W / 2 - 0.2, "strip runs off the bottom of the land: raise LED_Z");
 assert(s_top >= STRIP_W / 2, "strip runs above the wall: lower LED_Z or thin SEAT_T");
+assert(off_axis >= 0 && off_axis < 50, "sample outside the LED beam: check LAND_TILT");
+assert(LED_R > seat_ri + 2, "LEDs under the seat land: move LED_R out");
 
 // ---- parts -------------------------------------------------------------------------
 module cavity_strip() {
@@ -126,9 +142,9 @@ module cavity_strip() {
     ]);
 }
 
-module tab_holes(d, h) {
+module tab_holes(d, h, taper = 0) {
     for (dx = [0, TAB_HOLE_SPACING])
-        translate([tab_x + dx, 0, -1]) cylinder(d = d, h = h + 2);
+        translate([tab_x + dx, 0, -1]) cylinder(d1 = d, d2 = d + taper, h = h + 2);
 }
 
 module base() {
@@ -144,7 +160,7 @@ module base() {
         // cable slot, opposite the tab
         translate([-outer_r - 1, -CABLE_W / 2, GROOVE_Z]) cube([WALL + 8, CABLE_W, 6]);
         // heat-set pilots in the tab
-        tab_holes(HEATSET_D, TAB_T);
+        tab_holes(HEATSET_D, TAB_T, HEATSET_TAPER);
     }
 }
 
@@ -155,14 +171,16 @@ module seat() {
     difference() {
         union() {
             cylinder(r = seat_r, h = SEAT_T);
-            translate([0, 0, SEAT_T]) cylinder(r = pocket_r + 1.6, h = POCKET_H);
+            translate([0, 0, SEAT_T]) cylinder(r = pocket_top_r + 1.6, h = POCKET_H);
             translate([0, 0, -1.5]) difference() {
                 cylinder(r = seat_r, h = 1.5);
                 translate([0, 0, -1]) cylinder(r = outer_r + CLR, h = 4);
             }
         }
         translate([0, 0, -2]) cylinder(r = seat_ri, h = SEAT_T + 4);
-        translate([0, 0, SEAT_T]) cylinder(r = pocket_r, h = POCKET_H + 1);
+        // lip: tapered lead-in; the dish stands on the flat land below it
+        translate([0, 0, SEAT_T])
+            cylinder(r1 = pocket_r, r2 = pocket_top_r + 0.01, h = POCKET_H + 0.01);
     }
 }
 
@@ -174,11 +192,7 @@ module insert_stop() {
 }
 
 module insert_diffuser() {
-    difference() {
-        cylinder(r = r_ins, h = INSERT_T);
-        translate([0, 0, 0.6]) cylinder(r = r_cut - 0.5, h = INSERT_T);
-        translate([r_ins - 2.5, -1.5, INSERT_T - 0.8]) cube([3, 3, 1]);
-    }
+    insert_stop();  // same disc, printed in translucent filament: the material diffuses
 }
 
 module meca_adapter() {
@@ -228,4 +242,8 @@ else if (part == "seat") seat();
 else if (part == "stop") insert_stop();
 else if (part == "diffuser") insert_diffuser();
 else if (part == "meca_adapter") meca_adapter();
+else if (part == "section") difference() {  // half cut away, for checking fits by eye
+    assembly();
+    translate([-200, -400, -50]) cube([400, 400, 200]);
+}
 else assembly();
