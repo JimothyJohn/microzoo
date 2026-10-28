@@ -369,3 +369,28 @@ def test_wire_garbage_reply_raises():
     with pytest.raises(MecaError):
         MecaStage("127.0.0.1", SlideFrame(), port=fake.port, timeout=5)
     fake.close()
+
+
+# ---- stack helpers (stagesim) ---------------------------------------------------
+@given(st.floats(0, 100), st.floats(1, 200), st.floats(0.1, 50))
+def test_zstack_heights_even_inclusive_floor_first(z0, span, step):
+    from stagesim import zstack_heights
+
+    zs = zstack_heights(z0, z0 + span, step)
+    assert zs[0] == z0
+    assert zs[-1] <= z0 + span + 1e-6
+    assert zs[-1] + step > z0 + span - 1e-6  # nothing left out
+    assert np.allclose(np.diff(zs), step)
+
+
+@pytest.mark.parametrize("dx, dy", [(0.0, 0.0), (3.4, -1.2), (-7.0, 5.5)])
+def test_image_shift_finds_a_known_translation(dx, dy):
+    import cv2
+
+    from stagesim import image_shift
+
+    rng = np.random.default_rng(1)
+    ref = cv2.GaussianBlur((rng.random((200, 320)) * 255).astype(np.float32), (0, 0), 2)
+    moved = cv2.warpAffine(ref, np.array([[1, 0, dx], [0, 1, dy]], np.float32), (320, 200))
+    a, b = (cv2.cvtColor(x.astype(np.uint8), cv2.COLOR_GRAY2BGR) for x in (ref, moved))
+    assert image_shift(a, b) == pytest.approx((dx, dy), abs=0.3)

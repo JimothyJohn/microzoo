@@ -60,6 +60,7 @@ from stage import (  # noqa: E402
     SimStage,
     SlideFrame,
     move_time,
+    repeatability_sigma,
 )
 
 WAVELENGTH_UM = 0.55
@@ -207,6 +208,7 @@ def table(params: SimParams, exposure_s: float, latency_s: float, coverslip_mm: 
         lines.append(
             f"| {name} | {cruise / 1000:.2f} | {burst / 1000:.2f} | " + " | ".join(cells) + " |"
         )
+    lines += ["", stack_table(params, exposure_s)]
     h = 150.0
     lines += [
         "",
@@ -215,6 +217,43 @@ def table(params: SimParams, exposure_s: float, latency_s: float, coverslip_mm: 
         "so the sample rides the slide. An open 1 mm well lags by "
         f"{1000.0**2 / (math.pi**2 * WATER_NU_UM2_S) * 1000:.0f} ms plus surface waves.",
     ]
+    return "\n".join(lines)
+
+
+def stack_table(params: SimParams, exposure_s: float, depth_um: float = 150.0) -> str:
+    """Z-stacks of a still specimen: slices at DoF/2, with every slice carrying
+    the spec's repeatability scatter (the pessimistic reading: an incremental
+    Z step may be far finer than a return-to-point, which only the rig can tell)."""
+    sigma = repeatability_sigma(MECA_REPEATABILITY_UM)
+    lines = [
+        f"Z-stack of a still specimen through the {depth_um:g} µm chamber, step = DoF/2; "
+        f"each slice scattered by the spec ({sigma:.2f} µm rms per axis):",
+        "",
+        "| View | Step (µm) | Slices | Z scatter / step | XY wander / slice | Stack time "
+        "| Verdict |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for v in VIEWS.values():
+        if math.isnan(v.dof_um):
+            lines.append(
+                f"| {v.name} | — | — | — | {sigma / v.um_per_px:.1f} px | — | DoF unknown |"
+            )
+            continue
+        step = v.dof_um / 2
+        n = len(zstack_heights(0.0, depth_um, step))
+        ratio = sigma / step
+        per = move_time(step, params.speed_um_s, params.acc_um_s2, params.jerk_um_s3)
+        per += settle_time(params, step, v.um_per_px / 2) + exposure_s
+        if ratio < 0.25:
+            verdict = "fine as specified"
+        elif ratio < 0.5:
+            verdict = "usable; depth map noisy"
+        else:
+            verdict = "slices land out of order unless steps beat the spec: measure"
+        lines.append(
+            f"| {v.name} | {step:.2f} | {n} | {ratio:.0%} | {sigma / v.um_per_px:.1f} px "
+            f"| {n * per:.1f} s | {verdict} |"
+        )
     return "\n".join(lines)
 
 
@@ -312,6 +351,169 @@ class Follower:
         return np.array([v[0], v[1], 0.0])
 
 
+def zstack_heights(z0: float, z1: float, step: float) -> list[float]:
+    """Evenly spaced focal heights from ``z0`` up to ``z1`` (inclusive when it lands)."""
+    if not (step > 0 and z1 > z0):
+        raise ValueError("need z1 > z0 and a step > 0")
+    n = int(math.floor((z1 - z0) / step + 1e-9)) + 1
+    return [z0 + k * step for k in range(n)]
+
+
+def image_shift(ref: np.ndarray, img: np.ndarray) -> tuple[float, float]:
+    """Where ``img``'s content sits relative to ``ref``'s, px (phase correlation)."""
+    a = cv2.cvtColor(ref, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    b = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    win = cv2.createHanningWindow(a.shape[::-1], cv2.CV_32F)
+    (dx, dy), _ = cv2.phaseCorrelate(a, b, win)
+    return float(dx), float(dy)
+
+
+def zstack(
+    a: argparse.Namespace,
+    world: World,
+    stage: SimStage,
+    size: tuple[int, int],
+    upp: float,
+    view: Optics,
+    slide_of,
+) -> int:
+    """Step focus through a still specimen, one settled frame per slice.
+
+    The world is not stepped: the specimen is dead or fixed. What moves is the
+    robot, so every slice carries its own repeatability scatter in Z (the
+    slice is not quite where it was asked to be) and in XY (the specimen
+    wanders across the frame). The planes are registered to the middle slice
+    by phase correlation, the way a real stack would be, and written as
+    edof.py's multi-plane input: ``<stem>_plane<k>.mp4`` plus a sidecar
+    listing the commanded heights.
+    """
+    w, h = size
+    step = a.zstep if a.zstep else view.dof_um / 2
+    z0 = 0.0 if a.z0 is None else a.z0
+    z1 = a.depth if a.z1 is None else a.z1
+    try:
+        if not math.isfinite(step):
+            raise ValueError(f"{view.name} has no known depth of field: pass --zstep")
+        zs = zstack_heights(z0, z1, step)
+        if len(zs) < 2 or len(zs) > 2000:
+            raise ValueError(f"{len(zs)} slices; want 2..2000 (check --zstep, --z0, --z1)")
+        cands = [o for o in world.orgs if o.species == a.target and o.visible]
+        if not cands:
+            raise ValueError(f"no {a.target} in the cast")
+        xy = slide_of(min(cands, key=lambda o: float(np.linalg.norm(slide_of(o)))))
+        x0, y0 = float(xy[0]), float(xy[1])
+        stage.place(x0, y0, zs[0])
+        for z in zs:
+            stage.frame.check((x0, y0, z))
+    except ValueError as e:
+        print(f"stagesim: {e}", file=sys.stderr)
+        return 2
+    rng = np.random.default_rng(a.seed + 7_919)
+    exp = min(a.exposure, 1.0)
+    frames: list[np.ndarray] = []
+    poses: list[np.ndarray] = []
+    out = Path(a.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    truth_path = out.with_name(out.stem + "_truth.csv")
+    t_start = stage.t
+    with truth_path.open("w", newline="") as ft:
+        ct = csv.writer(ft)
+        ct.writerow(
+            ["frame", "obj_id", "x", "y", "species", "state", "heading", "length_px", "z_um"]
+        )
+        for k, z in enumerate(zs):
+            stage.move_to(x0, y0, z)
+            stage.wait_idle()
+            stage.step(a.dwell)
+            p0 = np.array(stage.pose())
+            stage.step(exp)
+            p1 = np.array(stage.pose())
+            with framed(world, (p0 + p1) / 2, np.zeros(2), size, upp):
+                img = render(world, size, upp, a.polarity, rng, noise=0.0)
+                ct.writerows([[k, *r[1:]] for r in world.truth_rows(upp)])
+            img = motion_blur(img, -(p1[:2] - p0[:2]) / upp)
+            noisy = img.astype(np.float32) + rng.normal(0, a.noise, img.shape[:2])[..., None]
+            frames.append(np.clip(noisy, 0, 255).astype(np.uint8))
+            poses.append(p1)
+    t_stack = stage.t - t_start
+    mid = len(frames) // 2
+    # the content's true shift relative to the middle slice: the slide moved the other way
+    truth = [tuple(-(p[:2] - poses[mid][:2]) / upp) for p in poses]
+    measured = [image_shift(frames[mid], f) for f in frames]
+    if a.register:
+        frames = [
+            cv2.warpAffine(
+                f,
+                np.array([[1, 0, -dx], [0, 1, -dy]], np.float32),
+                (w, h),
+                borderMode=cv2.BORDER_REFLECT,
+            )
+            for f, (dx, dy) in zip(frames, measured, strict=True)
+        ]
+    planes = []
+    for k, f in enumerate(frames):
+        pf = out.with_name(f"{out.stem}_plane{k}.mp4")
+        wr = cv2.VideoWriter(str(pf), cv2.VideoWriter.fourcc(*"mp4v"), 1.0, (w, h))
+        if not wr.isOpened():
+            print(f"stagesim: cannot open writer: {pf}", file=sys.stderr)
+            return 2
+        wr.write(f)
+        wr.release()
+        planes.append({"file": pf.name, "focus_um": round(zs[k], 4)})
+    wr = cv2.VideoWriter(str(out), cv2.VideoWriter.fourcc(*"mp4v"), a.fps, (w, h))
+    for f in frames:
+        wr.write(f)
+    wr.release()
+    with out.with_name(out.stem + "_stage.csv").open("w", newline="") as fs:
+        cs = csv.writer(fs)
+        cs.writerow(
+            ["slice", "z_cmd", "view_x", "view_y", "view_z", "shift_x_px", "shift_y_px",
+             "measured_x_px", "measured_y_px"]
+        )  # fmt: skip
+        for k, (z, p, tr, me) in enumerate(zip(zs, poses, truth, measured, strict=True)):
+            cs.writerow(
+                [k, f"{z:.3f}", *(f"{v:.3f}" for v in p), *(f"{v:.2f}" for v in tr),
+                 *(f"{v:.2f}" for v in me)]
+            )  # fmt: skip
+    z_err = np.array([p[2] - z for p, z in zip(poses, zs, strict=True)])
+    wander = np.array(truth)
+    reg_err = np.array(measured) - wander
+    stats = {
+        "slices": len(zs),
+        "step_um": step,
+        "stack_s": round(t_stack, 3),
+        "z_err_rms_um": float(np.sqrt(np.mean(z_err**2))),
+        "z_err_over_step": float(np.sqrt(np.mean(z_err**2)) / step),
+        "xy_wander_rms_px": float(np.sqrt(np.mean(np.sum(wander**2, axis=1)))),
+        "registration_err_rms_px": float(np.sqrt(np.mean(np.sum(reg_err**2, axis=1)))),
+        "slices_out_of_order": int(np.sum(np.diff([p[2] for p in poses]) <= 0)),
+    }
+    sidecar = {
+        "source": "stagesim",
+        "mode": "zstack",
+        "objective": a.objective,
+        "um_per_px": upp,
+        "size": [w, h],
+        "seed": a.seed,
+        "target": a.target,
+        "registered": a.register,
+        "depth_um": a.depth,
+        "planes": planes,
+        "plane_spacing_um": step,
+        "robot": {**asdict(stage.params), "model": "Meca500", "assumed": ["acc", "jerk", "flex"]},
+        "zstack": stats,
+    }
+    out.with_suffix(".json").write_text(json.dumps(sidecar, indent=1) + "\n")
+    print(
+        f"{out}: {len(zs)} slices x {step:.2f} µm through {a.target} at {a.objective} in "
+        f"{t_stack:.1f} s; Z error {stats['z_err_rms_um']:.2f} µm rms "
+        f"({stats['z_err_over_step']:.0%} of a step, {stats['slices_out_of_order']} out of order); "
+        f"XY wander {stats['xy_wander_rms_px']:.1f} px rms, registered to "
+        f"{stats['registration_err_rms_px']:.2f} px"
+    )
+    return 0
+
+
 def run(a: argparse.Namespace) -> int:
     view_opt = VIEWS[a.objective]
     full_w, full_h = view_opt.sensor
@@ -392,6 +594,8 @@ def run(a: argparse.Namespace) -> int:
         stage.set_speed(a.zrate)
         for _ in range(4):
             plan += [(0.0, 0.0, 0.0), (0.0, 0.0, depth)]
+    elif a.mode == "zstack":
+        return zstack(a, world, stage, (w, h), upp, view_opt, slide_of)
 
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -536,7 +740,9 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("run", help="simulate the stage under the camera")
     _robot_args(r)
     r.add_argument("--out", required=True)
-    r.add_argument("--mode", choices=("hold", "scan", "follow", "zsweep"), default="follow")
+    r.add_argument(
+        "--mode", choices=("hold", "scan", "follow", "zsweep", "zstack"), default="follow"
+    )
     r.add_argument("--objective", choices=sorted(VIEWS), default="10x")
     r.add_argument("--size", type=lambda s: _pair(s, int), help="render WxH (default half sensor)")
     r.add_argument("--world", type=_pair, help="slide patch WxH, µm (default: sized to the view)")
@@ -545,8 +751,14 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--kp", type=float, default=4.0, help="follow: 1/s")
     r.add_argument("--deadband", type=float, default=10.0, help="follow: px")
     r.add_argument("--tiles", type=lambda s: _pair(s, int), default=(3, 2), help="scan: NxM")
-    r.add_argument("--dwell", type=float, default=0.3, help="scan: s per tile once settled")
+    r.add_argument("--dwell", type=float, default=0.3, help="scan/zstack: s per stop once settled")
     r.add_argument("--zrate", type=float, default=100.0, help="zsweep: µm/s")
+    r.add_argument("--zstep", type=float, help="zstack: µm between slices (default DoF/2)")
+    r.add_argument("--z0", type=float, help="zstack: lowest slice, µm (default 0)")
+    r.add_argument("--z1", type=float, help="zstack: highest slice, µm (default --depth)")
+    r.add_argument(
+        "--no-register", dest="register", action="store_false", help="zstack: keep the wander"
+    )
     r.add_argument("--depth", type=float, default=150.0, help="chamber depth, µm")
     r.add_argument("--focus", type=float, help="µm above floor (default depth/2)")
     r.add_argument("--chamber", choices=("sealed", "well"), default="sealed")
